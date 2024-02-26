@@ -185,7 +185,7 @@ chrome.storage.sync.get({
                         });
                     }
                   });
-                }, 1000); // Poll every second
+                }, 2500); // Poll every second
               })
               .catch(error => console.error('Error:', error));
             }
