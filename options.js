@@ -19,7 +19,6 @@ function saveOptions(e) {
         }, function(items) {
       document.getElementById('enabled').checked = items.enabled;
       document.getElementById('apiUrl').value = items.apiUrl;
-      document.getElementById('apiKey').value = items.apiKey;
       document.getElementById('target_language').value = items.target_language;
     });
   }
