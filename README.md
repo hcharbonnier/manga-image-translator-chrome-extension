@@ -6,6 +6,11 @@ Please note that this extension is currently a Proof of Concept and may not func
 
 To use the manga-image-translator API, the following requirements must be met:
 
+To install this extension, follow the steps below:
+
+1. Go to the [Chrome Extensions Developer Documentation](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
+2. Follow the instructions to install the extension as an unpacked extension.
+
 - You need to have a manga-image-translator instance. You can find the repository for the manga-image-translator [here](https://github.com/zyddnys/manga-image-translator).
 - The manga-image-translator instance must be accessible via HTTPS and have a valid SSL certificate.
 - CORS (Cross-Origin Resource Sharing) must be configured for the manga-image-translator instance with the following settings:
