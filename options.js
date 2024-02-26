@@ -4,7 +4,6 @@ function saveOptions(e) {
     chrome.storage.sync.set({
       enabled: document.getElementById('enabled').checked,
       apiUrl: document.getElementById('apiUrl').value,
-      apiKey: document.getElementById('apiKey').value,
       target_language: document.getElementById('target_language').value
     });
   }
@@ -14,7 +13,6 @@ function saveOptions(e) {
     chrome.storage.sync.get({
       enabled: true,
       apiUrl: '',
-      apiKey: '',
       target_language: 'ENG'
         }, function(items) {
       document.getElementById('enabled').checked = items.enabled;

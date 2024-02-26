@@ -4,7 +4,6 @@ chrome.storage.sync.get({
   enabled: false,
   target_language: 'ENG',
   apiUrl: '',
-  apiKey: ''
 }, function(fetchedItems) {
   items = fetchedItems;
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -210,11 +209,6 @@ chrome.storage.sync.get({
       // Update the apiUrl status in the items object
       items.apiUrl = changes.apiUrl.newValue;
       console.log('The value of "apiUrl" is set to ' + items.apiUrl);
-    }
-    if (areaName === 'sync' && changes.apikey) {
-      // Update the apikey status in the items object
-      items.apikey = changes.apikey.newValue;
-      console.log('The value of "apikey" is set to ' + items.apikey);
     }
     if (areaName === 'sync' && changes.target_language) {
       // Update the target_language status in the items object
