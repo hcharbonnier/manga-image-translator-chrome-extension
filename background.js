@@ -31,7 +31,7 @@ chrome.storage.sync.get({
             console.log("image replaced")
           }
 
-          // Function to get image as Blob
+          // Function to get image as Blob from cache and if not available, fetch it
           function getImageAsBlob(img) {
             console.log("Getting image as blob: " + img.src)
             if (img.src.startsWith('chrome://')) {
@@ -68,7 +68,7 @@ chrome.storage.sync.get({
             });
           }
 
-          // Function to fetch image as Blob
+          // Function to fetch image as Blob from url (called by getImageAsBlob if read from cache failed)
           function fetchImageAsBlob(url) {
             console.log("Fetching image as blob: " + url)
             if (url.startsWith('chrome://')) {
@@ -121,6 +121,36 @@ chrome.storage.sync.get({
             });
           }
 
+          // Function to image's url to API and get task ID
+          function postUrlToApi(serverUrl,target_language, imageUrl) {
+            console.log("Posting image to API"+ serverUrl)
+            const formData = new FormData();
+            formData.append('url', imageUrl);
+            formData.append('size', 'M');
+            formData.append('detector', 'auto');
+            formData.append('direction', 'auto');
+            formData.append('translator', 'google');
+            formData.append('tgt_lang', target_language);
+
+            return fetch(serverUrl, {
+              method: 'POST',
+              body: formData
+            })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              // Return an object that includes both task_id and status
+              return { taskId: data.task_id, status: data.status };
+            })
+            .catch(error => {
+              console.error('There was a problem with the fetch operation: ', error);
+            });
+          }
+
           // Function to poll task state
           function pollTaskState(url, taskId) {
             console.log("Polling task state2")
@@ -148,14 +178,21 @@ chrome.storage.sync.get({
             // If the image has more than 500000 pixels
             if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://')) {
               // Fetch image as Blob
-              getImageAsBlob(img)
-              .then(imageBlob => {
-                // Post image to API and get task ID
-                console.log("Image fetched as blob")
-                console.log("imageBlob size:" + imageBlob.size)
-                
-                return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
-              })
+              let unamed = function() {
+                try {
+                  return postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
+                }
+                catch(error) {
+                  getImageAsBlob(img)
+                  .then(imageBlob => {
+                    // Post image to API and get task ID
+                    console.log("Image fetched as blob")
+                    console.log("imageBlob size:" + imageBlob.size)
+                    
+                    return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
+                  })
+                }
+              }
               .then(response => {
                 if (!response.taskId || response.status !== 'successful') {
                   console.log("Image submission was not successful, skipping this image");

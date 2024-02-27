@@ -9,5 +9,9 @@
     "background": {
       "service_worker": "background.js"
     },
-    "host_permissions": [ "http://localhost/*", "*://*/*", "\u003Call_urls>" ]
+    "host_permissions": [ "http://localhost/*", "*://*/*", "\u003Call_urls>" ],
+    "icons": {
+       "128": "icons/128x128.png",
+       "48": "icons/48x48.png"
+    }
   }
