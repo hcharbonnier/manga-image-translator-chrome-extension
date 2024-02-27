@@ -25,24 +25,10 @@ chrome.storage.sync.get({
           }
 
           // Function to replace an image
-          function replaceImageold(img, newSrc) {
+          function replaceImage(img, newSrc) {
             console.log("Replacing image")
             img.src = newSrc;
             console.log("image replaced")
-          }
-
-          // Function to replace an image
-          function replaceImage(oldImg, newSrc) {
-            console.log("Replacing image")
-            
-            // Create a new image element
-            var newImg = document.createElement('img');
-            newImg.src = newSrc;
-
-            // Replace the old image with the new one in the DOM
-            oldImg.parentNode.replaceChild(newImg, oldImg);
-
-            console.log("Image replaced")
           }
 
           // Function to get image as Blob from cache and if not available, fetch it
