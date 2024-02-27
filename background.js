@@ -176,14 +176,8 @@ chrome.storage.sync.get({
           for (let img of images) {
             console.log("Image found")
             // If the image has more than 500000 pixels
-            if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://')) {
+            if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://') && !img.src.startsWith('blob:')) {
               // Fetch image as Blob
-              if (img.src.startsWith('blob:')) {
-                console.log("Skipping:Image url start with blob : " + img.src)
-                return
-              }else {
-                console.log("Image url does not start with blob : " + img.src)
-              }
               postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
               .then (response => {
                 if (!response.taskId || response.status !== 'successful') {
