@@ -178,21 +178,15 @@ chrome.storage.sync.get({
             // If the image has more than 500000 pixels
             if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://')) {
               // Fetch image as Blob
-              let unamed = function() {
-                try {
-                  return postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
+              postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
+              .then (response => {
+                if (!response.taskId || response.status !== 'successful') {
+                  return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
                 }
-                catch(error) {
-                  getImageAsBlob(img)
-                  .then(imageBlob => {
-                    // Post image to API and get task ID
-                    console.log("Image fetched as blob")
-                    console.log("imageBlob size:" + imageBlob.size)
-                    
-                    return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
-                  })
+                else {
+                  return response
                 }
-              }
+              })
               .then(response => {
                 if (!response.taskId || response.status !== 'successful') {
                   console.log("Image submission was not successful, skipping this image");
