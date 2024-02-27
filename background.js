@@ -187,9 +187,14 @@ chrome.storage.sync.get({
               postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
               .then (response => {
                 if (!response.taskId || response.status !== 'successful') {
-                  return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
+                  console.log( "nok")
+                  return getImageAsBlob(img)
+                  .then(imageBlob => {
+                    return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
+                  })
                 }
                 else {
+                  console.log( "ok")
                   return response
                 }
               })
