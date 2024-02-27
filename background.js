@@ -31,6 +31,34 @@ chrome.storage.sync.get({
             console.log("image replaced")
           }
 
+          function replaceSourceSet(img, newSrc) {
+            console.log("Replacing source set")
+            let pictureElement = img.parentElement;
+            if (pictureElement && pictureElement.tagName === 'PICTURE') {
+              let sources = pictureElement.getElementsByTagName('source');
+              let url = new URL(newSrc);
+              let extension = url.pathname.split('.').pop();
+              let typeMap = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'webp': 'image/webp',
+                'gif': 'image/gif',
+                'svg': 'image/svg+xml',
+                'avif': 'image/avif',
+                'jxl': 'image/jxl'
+              };
+              let newType = typeMap[extension];
+              for (let source of sources) {
+                source.srcset = newSrc;
+                if (newType) {
+                  source.type = newType;
+                }
+              }
+            }
+            console.log("source set replaced")
+          }
+
           // Function to get image as Blob from cache and if not available, fetch it
           function getImageAsBlob(img) {
             console.log("Getting image as blob: " + img.src)
@@ -217,6 +245,7 @@ chrome.storage.sync.get({
                 
                           // Replace the image with the translated one
                           replaceImage(img, objectUrl);
+                          replaceSourceSet(img, objectUrl);
                         });
                     }
                   });
