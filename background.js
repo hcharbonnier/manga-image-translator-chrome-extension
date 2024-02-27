@@ -181,6 +181,8 @@ chrome.storage.sync.get({
               if (img.src.startsWith('blob:')) {
                 console.log("Skipping:Image url start with blob : " + img.src)
                 return
+              }else {
+                console.log("Image url does not start with blob : " + img.src)
               }
               postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
               .then (response => {
