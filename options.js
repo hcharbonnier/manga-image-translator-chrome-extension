@@ -12,7 +12,7 @@ function saveOptions(e) {
   chrome.storage.sync.set({
     enabled: isEnabled,
     apiUrl: document.getElementById('apiUrl').value,
-    apiUrl: document.getElementById('status').value,
+    status: document.getElementById('status').value,
     target_language: document.getElementById('target_language').value
   }, function() {
        updateIcon(isEnabled);
@@ -30,10 +30,11 @@ function restoreOptions() {
     document.getElementById('enabled').checked = items.enabled;
     document.getElementById('apiUrl').value = items.apiUrl;
     document.getElementById('status').value = items.status;
+    document.getElementById('statusSpan').innerHTML = items.status;
     document.getElementById('target_language').value = items.target_language;
 
     // Update the icon after restoring the options
-    updateIcon(isEnabled);
+    updateIcon(items.enabled);
   });
 }
   
@@ -70,7 +71,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Check if the API URL is valid
   document.addEventListener('DOMContentLoaded', function() {
     var apiUrlInput = document.getElementById('apiUrl');
-    var statusLabel = document.getElementById('status');
+    var statusInput = document.getElementById('status');
+    var statusSpan = document.getElementById('statusSpan');
   
     apiUrlInput.addEventListener('input', function() {
       var apiUrl = apiUrlInput.value;
@@ -80,17 +82,21 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!data.hasOwnProperty('size')) {
             var logMessage = '&#10060;';
             console.log(logMessage);
-            statusLabel.innerHTML = logMessage;
+            statusSpan.innerHTML = logMessage;
+            statusInput.value = logMessage;
           } else {
-            var successMessage = '&#9989;';
-            console.log(successMessage);
-            statusLabel.innerHTML = successMessage;
+            var logMessage = '&#9989;';
+            console.log(logMessage);
+            statusSpan.innerHTML = logMessage;
+            statusInput.value = logMessage;
           }
         })
         .catch(error => {
           var logMessage = '&#10060;';
           console.log(logMessage);
-          statusLabel.innerHTML = logMessage;
+          statusSpan.innerHTML = logMessage;
+          statusSpan.innerHTML = logMessage;
+          statusInput.value = logMessage;
         });
     });
   });
