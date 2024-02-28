@@ -1,3 +1,10 @@
+// Function to update the icon
+function updateIcon(isEnabled) {
+  chrome.action.setIcon({
+    path: isEnabled ? 'icons/128x128.png' : 'icons/128x128-disabled.png'
+  });
+}
+
 // Saves options to chrome.storage
 function saveOptions(e) {
   e.preventDefault();
@@ -7,10 +14,7 @@ function saveOptions(e) {
     apiUrl: document.getElementById('apiUrl').value,
     target_language: document.getElementById('target_language').value
   }, function() {
-    // Update the icon after saving the options
-    chrome.action.setIcon({
-      path: isEnabled ? 'icons/128x128.png' : 'icons/128x128-disabled.png'
-    });
+       updateIcon(isEnabled);
   });
 }
 
@@ -26,12 +30,19 @@ function restoreOptions() {
     document.getElementById('target_language').value = items.target_language;
 
     // Update the icon after restoring the options
-    chrome.browserAction.setIcon({
-      path: items.enabled ? 'icons/128x128.png' : 'icons/128x128-disabled.png'
-    });
+    updateIcon(isEnabled);
   });
 }
   
+//Update the icon when the extension is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  chrome.storage.sync.get({
+    enabled: true
+  }, function(items) {
+    updateIcon(items.enabled);
+  });
+});
+
   document.addEventListener('DOMContentLoaded', restoreOptions);
   document.getElementById('optionsForm').addEventListener('submit', saveOptions);
   document.addEventListener('DOMContentLoaded', function() {
