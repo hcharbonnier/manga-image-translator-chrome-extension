@@ -12,6 +12,7 @@ function saveOptions(e) {
   chrome.storage.sync.set({
     enabled: isEnabled,
     apiUrl: document.getElementById('apiUrl').value,
+    apiUrl: document.getElementById('status').value,
     target_language: document.getElementById('target_language').value
   }, function() {
        updateIcon(isEnabled);
@@ -23,10 +24,12 @@ function restoreOptions() {
   chrome.storage.sync.get({
     enabled: true,
     apiUrl: '',
+    status: '',
     target_language: 'ENG'
   }, function(items) {
     document.getElementById('enabled').checked = items.enabled;
     document.getElementById('apiUrl').value = items.apiUrl;
+    document.getElementById('status').value = items.status;
     document.getElementById('target_language').value = items.target_language;
 
     // Update the icon after restoring the options
