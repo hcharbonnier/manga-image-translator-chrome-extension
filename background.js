@@ -1,4 +1,5 @@
 let items = {};
+let poll_wait_interval = { value: 2500 }; // Wrap poll_wait_interval in an object
 
 chrome.storage.sync.get({
   enabled: false,
@@ -13,9 +14,8 @@ chrome.storage.sync.get({
     if (changeInfo.status === 'complete' && tab.active && items.enabled) {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        args: [items],
-        function: (items) => {
-          
+        args: [items,poll_wait_interval],
+        function: (items,poll_wait_interval) => {
           const proxyUrl = 'https://corsproxy.io/?';
 
           // Function to get pixel count of an image
@@ -197,6 +197,10 @@ chrome.storage.sync.get({
             }
             return fetch(`${url}/${taskId}`).then(response => response.blob());
           }
+
+          function sleep(seconds) {
+            return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+          }
           console.log("Script running")
           const images = document.getElementsByTagName('img');
   
@@ -227,11 +231,11 @@ chrome.storage.sync.get({
                 }
 
                 // Poll task state until it's finished
-                const pollInterval = setInterval(() => {
+                const pollInterval = setInterval(async () => {
                   let taskId = response.taskId
                   console.log("Polling task state")
                   pollTaskState(`${items.apiUrl}/task-state`, taskId) // Use response.taskId
-                  .then(response => {
+                  .then(async response => {
                     console.log("Response: " + JSON.stringify(response))
                     if (response.finished) {
                       clearInterval(pollInterval);
@@ -247,6 +251,10 @@ chrome.storage.sync.get({
                           replaceImage(img, objectUrl);
                           replaceSourceSet(img, objectUrl);
                         });
+                    } else {
+                      console.log("Task not finished yet. Position : " + response.waiting + " Polling again in "+5*response.waiting+" seconds.")
+                      poll_wait_interval.value=(5*response.waiting)+1 
+                      await sleep(5*response.waiting)
                     }
                   });
                 }, 2500); // Poll every second

@@ -12,12 +12,12 @@
       <form id="optionsForm">
         <div class="form-group">
           <div class="custom-control custom-switch">
-            <input type="checkbox" class="custom-control-input" id="enabled">
+            <input type="checkbox" class="custom-control-input" id="enabled" >
             <label class="custom-control-label" for="enabled">Enable Image Replacement</label>
           </div>
         </div>
         <div class="form-group">
-          <label for="apiUrl">API URL:</label>
+          <label for="apiUrl">API URL</label><label for="status" id="status">test</label>
           <input type="text" class="form-control" id="apiUrl">
         </div>
         <div class="form-group">
@@ -44,7 +44,7 @@
             <option value="VIN">Vietnamese</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary" >Save</button>
+        <button type="submit" id="submit" class="btn btn-primary" hidden></button>
       </form>
     </div>
     <script src="options.js"></script>

@@ -34,3 +34,49 @@ function restoreOptions() {
   
   document.addEventListener('DOMContentLoaded', restoreOptions);
   document.getElementById('optionsForm').addEventListener('submit', saveOptions);
+  document.addEventListener('DOMContentLoaded', function() {
+    var enabledCheckbox = document.getElementById('enabled');
+    var apiUrlInput = document.getElementById('apiUrl');
+    var targetLanguageSelect = document.getElementById('target_language');
+    var submitButton = document.getElementById('submit');
+  
+    enabledCheckbox.addEventListener('change', function() {
+      submitButton.click();
+    });
+  
+    apiUrlInput.addEventListener('change', function() {
+      submitButton.click();
+    });
+  
+    targetLanguageSelect.addEventListener('change', function() {
+      submitButton.click();
+    });
+  });
+
+  // Check if the API URL is valid
+  document.addEventListener('DOMContentLoaded', function() {
+    var apiUrlInput = document.getElementById('apiUrl');
+    var statusLabel = document.getElementById('status');
+  
+    apiUrlInput.addEventListener('input', function() {
+      var apiUrl = apiUrlInput.value;
+      fetch(`${apiUrl}/queue-size`)
+        .then(response => response.json())
+        .then(data => {
+          if (!data.hasOwnProperty('size')) {
+            var logMessage = '&#10060;';
+            console.log(logMessage);
+            statusLabel.innerHTML = logMessage;
+          } else {
+            var successMessage = '&#9989;';
+            console.log(successMessage);
+            statusLabel.innerHTML = successMessage;
+          }
+        })
+        .catch(error => {
+          var logMessage = '&#10060;';
+          console.log(logMessage);
+          statusLabel.innerHTML = logMessage;
+        });
+    });
+  });
