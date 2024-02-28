@@ -13,5 +13,7 @@
     "icons": {
        "128": "icons/128x128.png",
        "48": "icons/48x48.png"
-    }
+    },
+    "description": " Client to manga-imagr-translator",
+    "homepage_url": "https://github.com/hcharbonnier/manga-image-translator-chrome-extension" 
   }
