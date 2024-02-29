@@ -123,10 +123,10 @@ chrome.storage.sync.get({
             console.log("Posting image to API"+ url)
             const formData = new FormData();
             formData.append('file', imageBlob);
-            formData.append('size', 'M');
+            formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'google');
+            formData.append('translator', 'deepl');
             formData.append('tgt_lang', target_language);
 
             return fetch(url, {
@@ -156,7 +156,7 @@ chrome.storage.sync.get({
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'google');
+            formData.append('translator', 'deepl');
             formData.append('tgt_lang', target_language);
 
             return fetch(serverUrl, {
