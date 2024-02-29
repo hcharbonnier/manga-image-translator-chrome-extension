@@ -150,10 +150,10 @@ chrome.storage.sync.get({
 
           // Function to image's url to API and get task ID
           function postUrlToApi(serverUrl,target_language, imageUrl) {
-            console.log("Posting image to API"+ serverUrl)
+            console.log("Posting Url to API"+ serverUrl)
             const formData = new FormData();
             formData.append('url', imageUrl);
-            formData.append('size', 'M');
+            formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
             formData.append('translator', 'google');
@@ -197,6 +197,53 @@ chrome.storage.sync.get({
             return fetch(`${url}/${taskId}`).then(response => response.blob());
           }
 
+          function showLoading(img) {
+            // Create a new div element for the loading spinner
+            let loadingDiv = document.createElement('div');
+            loadingDiv.className = 'spinner-manga';
+            loadingDiv.style.position = 'absolute';
+            loadingDiv.style.top = img.offsetTop + 'px'; // Position it at the top of the image
+            loadingDiv.style.left = img.offsetLeft + 'px'; // Position it at the left of the image
+            loadingDiv.style.width = img.offsetWidth + 'px'; // Make it the same width as the image
+            loadingDiv.style.height = img.offsetHeight + 'px'; // Make it the same height as the image
+            //loadingDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
+            loadingDiv.style.display = 'flex';
+            loadingDiv.style.justifyContent = 'center';
+            loadingDiv.style.alignItems = 'center';
+            loadingDiv.style.zIndex = 10000;
+            loadingDiv.innerHTML = `
+              <div style="
+                border: 16px solid #f3f3f3; /* Light grey */
+                border-top: 16px solid #3498db; /* Blue */
+                border-radius: 50%;
+                width: 120px;
+                height: 120px;
+                animation: spin 3s linear infinite;
+              "></div>
+            `;
+            let style = document.createElement('style');
+            style.innerHTML = `
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `;
+            // Add the loading spinner to the image's parent
+            document.body.appendChild(loadingDiv);
+            document.head.appendChild(style);
+            // Return the loading div so it can be removed later
+            return loadingDiv;
+          }
+
+          function hideLoading() {
+            // Find the loading div in the body of the document
+            let loadingDiv = document.body.querySelector('.spinner-manga');
+            if (loadingDiv) {
+              // Remove the loading spinner from the body of the document
+              loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+          }
+
           console.log("Script running")
           const images = document.getElementsByTagName('img');
   
@@ -206,6 +253,7 @@ chrome.storage.sync.get({
             // If the image has more than 500000 pixels
             if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://') && !img.src.startsWith('blob:')) {
               // Fetch image as Blob
+              let loadingDiv = showLoading(img);
               postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
               .then (response => {
                 if (!response.taskId || response.status !== 'successful') {
@@ -223,6 +271,7 @@ chrome.storage.sync.get({
               .then(response => {
                 if (!response.taskId || response.status !== 'successful') {
                   console.log("Image submission was not successful, skipping this image");
+                  hideLoading(img);
                   return;
                 }
 
@@ -244,6 +293,7 @@ chrome.storage.sync.get({
                           const objectUrl = URL.createObjectURL(translatedImageBlob);
                 
                           // Replace the image with the translated one
+                          hideLoading(img);
                           replaceImage(img, objectUrl);
                           replaceSourceSet(img, objectUrl);
                         });

@@ -57,13 +57,13 @@ document.addEventListener('DOMContentLoaded', function() {
   
     enabledCheckbox.addEventListener('change', function() {
       submitButton.click();
-      if (enabledCheckbox.checked) {
+      //if (enabledCheckbox.checked) {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
           tabs.forEach(function(tab) {
             chrome.tabs.reload(tab.id);
           });
         });
-      }
+      //}
     });
   
     apiUrlInput.addEventListener('change', function() {
