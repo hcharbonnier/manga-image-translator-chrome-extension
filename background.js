@@ -153,7 +153,7 @@ chrome.storage.sync.get({
             console.log("Posting Url to API"+ serverUrl)
             const formData = new FormData();
             formData.append('url', imageUrl);
-            formData.append('size', 'M');
+            formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
             formData.append('translator', 'google');
