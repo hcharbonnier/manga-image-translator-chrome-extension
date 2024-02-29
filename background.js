@@ -202,15 +202,15 @@ chrome.storage.sync.get({
             let loadingDiv = document.createElement('div');
             loadingDiv.className = 'spinner-manga';
             loadingDiv.style.position = 'absolute';
-            loadingDiv.style.top = '0';
-            loadingDiv.style.left = '0';
-            loadingDiv.style.width = '100%';
-            loadingDiv.style.height = '100%';
+            loadingDiv.style.top = img.offsetTop + 'px'; // Position it at the top of the image
+            loadingDiv.style.left = img.offsetLeft + 'px'; // Position it at the left of the image
+            loadingDiv.style.width = img.offsetWidth + 'px'; // Make it the same width as the image
+            loadingDiv.style.height = img.offsetHeight + 'px'; // Make it the same height as the image
             //loadingDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
             loadingDiv.style.display = 'flex';
             loadingDiv.style.justifyContent = 'center';
             loadingDiv.style.alignItems = 'center';
-            loadingDiv.style.zIndex = 1000;
+            loadingDiv.style.zIndex = 10000;
             loadingDiv.innerHTML = `
               <div style="
                 border: 16px solid #f3f3f3; /* Light grey */
@@ -230,21 +230,18 @@ chrome.storage.sync.get({
             `;
 
             // Add the loading spinner to the image's parent
-            img.parentNode.style.position = 'relative';
-            img.parentNode.appendChild(loadingDiv);
+            document.body.appendChild(loadingDiv);
             document.head.appendChild(style);
           
             // Return the loading div so it can be removed later
             return loadingDiv;
           }
-          
-          // Function to hide loading spinner
-          function hideLoading(img) {
-            // Find the loading div as a child of the img's parent
-            let loadingDiv = img.parentNode.querySelector('.spinner-manga');
+
+          function hideLoading() {
+            // Find the loading div in the body of the document
+            let loadingDiv = document.body.querySelector('.spinner-manga');
             if (loadingDiv) {
-              // Remove the loading spinner from the img's parent
-              //img.parentNode.removeChild(loadingDiv);
+              // Remove the loading spinner from the body of the document
               loadingDiv.parentNode.removeChild(loadingDiv);
             }
           }
