@@ -228,11 +228,9 @@ chrome.storage.sync.get({
                 100% { transform: rotate(360deg); }
               }
             `;
-
             // Add the loading spinner to the image's parent
             document.body.appendChild(loadingDiv);
             document.head.appendChild(style);
-          
             // Return the loading div so it can be removed later
             return loadingDiv;
           }
