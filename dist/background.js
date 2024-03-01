@@ -27,7 +27,15 @@ chrome.storage.sync.get({
           function replaceImage(img, newSrc) {
             console.log("Replacing image")
             img.src = newSrc;
-            console.log("image replaced")
+            console.log("image src replaced")
+            const newImg = new Image();
+            newImg.src = img.src;
+            // When the new image is loaded, replace the original image with the new one
+            newImg.onload = function() {
+              if (img.parentNode) {
+                img.parentNode.replaceChild(newImg, img);
+              }
+            };
           }
 
           function replaceSourceSet(img, newSrc) {
