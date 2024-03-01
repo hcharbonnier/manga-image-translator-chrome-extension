@@ -28,14 +28,14 @@ chrome.storage.sync.get({
             console.log("Replacing image")
             img.src = newSrc;
             console.log("image src replaced")
-            const newImg = new Image();
-            newImg.src = img.src;
-            // When the new image is loaded, replace the original image with the new one
-            newImg.onload = function() {
-              if (img.parentNode) {
-                img.parentNode.replaceChild(newImg, img);
-              }
-            };
+            // const newImg = new Image();
+            // newImg.src = img.src;
+            // // When the new image is loaded, replace the original image with the new one
+            // newImg.onload = function() {
+            //   if (img.parentNode) {
+            //     img.parentNode.replaceChild(newImg, img);
+            //   }
+            // };
           }
 
           function replaceSourceSet(img, newSrc) {
@@ -287,54 +287,56 @@ chrome.storage.sync.get({
             return new Promise(resolve => setTimeout(resolve, ms));
           }
 
-          console.log("Script running")
-          const images = document.getElementsByTagName('img');
+          setTimeout(function() {
+            console.log("Script running")
+            const images = document.getElementsByTagName('img');
   
-          // Get all images on the page
-          for (let img of images) {
-            console.log("Image found")
-            // If the image has more than 500000 pixels
-            if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://') && !img.src.startsWith('blob:')) {
-              // Fetch image as Blob
-              let loadingDiv = showLoading(img);
+            // Get all images on the page
+            for (let img of images) {
+              console.log("Image found")
+              // If the image has more than 500000 pixels
+              if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://')) {
+                // Fetch image as Blob
+                let loadingDiv = showLoading(img);
 
-              //submit the image to the API
-              submit(img).then(response => {
-                let taskId = response.taskId
+                //submit the image to the API
+                submit(img).then(response => {
+                  let taskId = response.taskId
 
-                pollTaskState(`${items.apiUrl}/task-state`, taskId)
-                  .then(async response => {
-                    console.log("Response: " + JSON.stringify(response))
-                    await sleep(response.waiting * 3 * 1000)
-                    .then (() => {
-                    // Poll task state until it's finished
-                    const pollInterval = setInterval(() => {
-                      console.log("Polling task state")
-                      pollTaskState(`${items.apiUrl}/task-state`, taskId) // Use response.taskId
-                      .then(response => {
-                        console.log("Response: " + JSON.stringify(response))
-                        if (response.finished) {
-                          clearInterval(pollInterval);
-                          // Get translated image
-                          console.log("Getting translated image")
-                          getTranslatedImage(`${items.apiUrl}/result`, taskId)
-                            .then(translatedImageBlob => {
-                              // Create object URL from Blob
-                              const objectUrl = URL.createObjectURL(translatedImageBlob);
-                              // Replace the image with the translated one
-                              hideLoading(img);
-                              replaceImage(img, objectUrl);
-                              replaceSourceSet(img, objectUrl);
-                            });
-                        } 
-                      });
-                    }, 1000); // Poll every second
+                  pollTaskState(`${items.apiUrl}/task-state`, taskId)
+                    .then(async response => {
+                      console.log("Response: " + JSON.stringify(response))
+                      await sleep(response.waiting * 3 * 1000)
+                      .then (() => {
+                      // Poll task state until it's finished
+                      const pollInterval = setInterval(() => {
+                        console.log("Polling task state")
+                        pollTaskState(`${items.apiUrl}/task-state`, taskId) // Use response.taskId
+                        .then(response => {
+                          console.log("Response: " + JSON.stringify(response))
+                          if (response.finished) {
+                            clearInterval(pollInterval);
+                            // Get translated image
+                            console.log("Getting translated image")
+                            getTranslatedImage(`${items.apiUrl}/result`, taskId)
+                              .then(translatedImageBlob => {
+                                // Create object URL from Blob
+                                const objectUrl = URL.createObjectURL(translatedImageBlob);
+                                // Replace the image with the translated one
+                                hideLoading(img);
+                                replaceImage(img, objectUrl);
+                                replaceSourceSet(img, objectUrl);
+                              });
+                          } 
+                        });
+                      }, 1000); // Poll every second
+                    })
                   })
                 })
-              })
-              .catch(error => console.error('Error:', error));
+                .catch(error => console.error('Error:', error));
+              }
             }
-          }
+          },600)
         }
       });
     }
