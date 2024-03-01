@@ -256,7 +256,7 @@ chrome.storage.sync.get({
               blob = await getImageBlob(img)
               return await submitImage(`${items.apiUrl}/submit`,items.target_language,blob)
             } catch (error) {
-              console.log("Failed to get image as blob. Try tu submit image as URL.")
+              console.log("Failed to get image as blob. Try to submit image as URL.")
               try {
                 return await submitUrl(`${items.apiUrl}/submit`, items.target_language,img.src)
               } catch (error) {
