@@ -59,11 +59,11 @@ chrome.storage.sync.get({
           }
 
           // Function to get image as Blob from cache and if not available, fetch it
-          function getImageAsBlob(img) {
+          async function getImageBlob(img) {
             console.log("Getting image as blob: " + img.src)
             if (img.src.startsWith('chrome://')) {
               // Skip chrome:// URLs
-              return Promise.reject('Cannot fetch chrome:// URL');
+              throw new Error('Cannot fetch chrome:// URL');
             }
           
             // Create a new image element
@@ -87,16 +87,14 @@ chrome.storage.sync.get({
                   resolve(blob);
                 } else {
                   console.log('Canvas to Blob conversion failed');
-                  fetchImageAsBlob(img.src)
-                    .then(blob => resolve(blob))
-                    .catch(err => reject(err));
+                  reject('Canvas to Blob conversion failed');
                 }
               });
             });
           }
 
           // Function to fetch image as Blob from url (called by getImageAsBlob if read from cache failed)
-          function fetchImageAsBlob(url) {
+          function fetchImage(url) {
             console.log("Fetching image as blob: " + url)
             if (url.startsWith('chrome://')) {
               // Skip chrome:// URLs
@@ -107,11 +105,8 @@ chrome.storage.sync.get({
             .then(response => {
               return response.blob().then(blob => {
                 if (!response.ok) {
-                  console.log("Response not ok: submit failed")
-                } else {
-                  console.log("Response ok: submit ok")
-                }
-                console.log("Response size: " + blob.size);
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                } 
                 return blob;
               });
             });
@@ -119,47 +114,20 @@ chrome.storage.sync.get({
           }
 
           // Function to post image to API and get task ID
-          function postImageToApi(url,target_language, imageBlob) {
-            console.log("Posting image to API"+ url)
+          function submitImage (apiUrl,target_language,imageBlob) {
+            if (!imageBlob){
+              return { taskId: "0", status: "error" };
+            }
+            console.log("Posting image to API"+ apiUrl)
             const formData = new FormData();
             formData.append('file', imageBlob);
-            formData.append('size', 'M');
-            formData.append('detector', 'auto');
-            formData.append('direction', 'auto');
-            formData.append('translator', 'google');
-            formData.append('tgt_lang', target_language);
-
-            return fetch(url, {
-              method: 'POST',
-              body: formData
-            })
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-              }
-              return response.json();
-            })
-            .then(data => {
-              // Return an object that includes both task_id and status
-              return { taskId: data.task_id, status: data.status };
-            })
-            .catch(error => {
-              console.error('There was a problem with the fetch operation: ', error);
-            });
-          }
-
-          // Function to image's url to API and get task ID
-          function postUrlToApi(serverUrl,target_language, imageUrl) {
-            console.log("Posting Url to API"+ serverUrl)
-            const formData = new FormData();
-            formData.append('url', imageUrl);
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'google');
+            formData.append('translator', 'deepl');
             formData.append('tgt_lang', target_language);
 
-            return fetch(serverUrl, {
+            return fetch(apiUrl, {
               method: 'POST',
               body: formData
             })
@@ -171,11 +139,12 @@ chrome.storage.sync.get({
             })
             .then(data => {
               // Return an object that includes both task_id and status
-              return { taskId: data.task_id, status: data.status };
+              if (!data.task_id || data.status !== 'successful') {
+                throw new Error({ taskId: "0", status: "error" });
+              } else {
+                return({ taskId: data.task_id, status: data.status });
+              }
             })
-            .catch(error => {
-              console.error('There was a problem with the fetch operation: ', error);
-            });
           }
 
           // Function to poll task state
@@ -192,7 +161,7 @@ chrome.storage.sync.get({
             console.log("Getting translated image")
             if (!taskId) {
               console.error('Task ID is undefined');
-              return Promise.reject('Task ID is undefined');
+              throw new Error('Task ID is undefined');
             }
             return fetch(`${url}/${taskId}`).then(response => response.blob());
           }
@@ -218,7 +187,7 @@ chrome.storage.sync.get({
                 border-radius: 50%;
                 width: 120px;
                 height: 120px;
-                animation: spin 3s linear infinite;
+                animation: spin 4s linear infinite;
               "></div>
             `;
             let style = document.createElement('style');
@@ -244,6 +213,72 @@ chrome.storage.sync.get({
             }
           }
 
+          // Function to image's url to API and get task ID
+          function submitUrl(apiUrl,target_language,imgUrl) {
+            console.log("Posting Url to API"+ apiUrl)
+            const formData = new FormData();
+            formData.append('url', imgUrl);
+            formData.append('size', 'X');
+            formData.append('detector', 'auto');
+            formData.append('direction', 'auto');
+            formData.append('translator', 'deepl');
+            formData.append('tgt_lang', target_language);
+
+            return fetch(apiUrl, {
+              method: 'POST',
+              body: formData
+            })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .then(data => {
+              // Return an object that includes both task_id and status
+              if (!data.taskId || data.status !== 'successful') {
+                throw new Error(`{ taskId: ${data.task_id}, status: ${data.status} }`);
+              } else {
+              return { taskId: data.task_id, status: data.status };
+              }
+            })
+            .catch(error => {
+              throw new Error('{ taskId: "0", status: "error" }');
+            });
+          }
+
+          // Function to submit image to the API
+          async function submit(img){
+            // Submit the image to the API
+            // Preference order of submit: Blob -> URL -> Fetched blob
+            let blob = null
+            try {
+              blob = await getImageBlob(img)
+              return await submitImage(`${items.apiUrl}/submit`,items.target_language,blob)
+            } catch (error) {
+              console.log("Failed to get image as blob. Try to submit image as URL.")
+              try {
+                return await submitUrl(`${items.apiUrl}/submit`, items.target_language,img.src)
+              } catch (error) {
+                console.log("Failed to submit image as URL try to fetch+submit image")
+                try {
+                  blob=await fetchImage(img.src)
+                  return await submitImage(`${items.apiUrl}/submit`,items.target_language,blob)
+                }
+                catch {
+                  hideLoading(img);
+                  console.log("Image submission was not successful, skipping this image");
+                  return;
+                }
+              }
+            }
+          }
+
+          function sleep(ms) {
+            console.log("Sleeping"+ms + "ms")
+            return new Promise(resolve => setTimeout(resolve, ms));
+          }
+
           console.log("Script running")
           const images = document.getElementsByTagName('img');
   
@@ -254,52 +289,40 @@ chrome.storage.sync.get({
             if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://') && !img.src.startsWith('blob:')) {
               // Fetch image as Blob
               let loadingDiv = showLoading(img);
-              postUrlToApi(`${items.apiUrl}/submit`, items.target_language,img.src)
-              .then (response => {
-                if (!response.taskId || response.status !== 'successful') {
-                  console.log( "nok")
-                  return getImageAsBlob(img)
-                  .then(imageBlob => {
-                    return postImageToApi(`${items.apiUrl}/submit`, items.target_language,imageBlob);
-                  })
-                }
-                else {
-                  console.log( "ok")
-                  return response
-                }
-              })
-              .then(response => {
-                if (!response.taskId || response.status !== 'successful') {
-                  console.log("Image submission was not successful, skipping this image");
-                  hideLoading(img);
-                  return;
-                }
 
-                // Poll task state until it's finished
-                const pollInterval = setInterval(() => {
-                  let taskId = response.taskId
-                  console.log("Polling task state")
-                  pollTaskState(`${items.apiUrl}/task-state`, taskId) // Use response.taskId
-                  .then(response => {
+              //submit the image to the API
+              submit(img).then(response => {
+                let taskId = response.taskId
+
+                pollTaskState(`${items.apiUrl}/task-state`, taskId)
+                  .then(async response => {
                     console.log("Response: " + JSON.stringify(response))
-                    if (response.finished) {
-                      clearInterval(pollInterval);
-                
-                      // Get translated image
-                      console.log("Getting translated image")
-                      getTranslatedImage(`${items.apiUrl}/result`, taskId)
-                        .then(translatedImageBlob => {
-                          // Create object URL from Blob
-                          const objectUrl = URL.createObjectURL(translatedImageBlob);
-                
-                          // Replace the image with the translated one
-                          hideLoading(img);
-                          replaceImage(img, objectUrl);
-                          replaceSourceSet(img, objectUrl);
-                        });
-                    } 
-                  });
-                }, 2500); // Poll every second
+                    await sleep(response.waiting * 3 * 1000)
+                    .then (() => {
+                    // Poll task state until it's finished
+                    const pollInterval = setInterval(() => {
+                      console.log("Polling task state")
+                      pollTaskState(`${items.apiUrl}/task-state`, taskId) // Use response.taskId
+                      .then(response => {
+                        console.log("Response: " + JSON.stringify(response))
+                        if (response.finished) {
+                          clearInterval(pollInterval);
+                          // Get translated image
+                          console.log("Getting translated image")
+                          getTranslatedImage(`${items.apiUrl}/result`, taskId)
+                            .then(translatedImageBlob => {
+                              // Create object URL from Blob
+                              const objectUrl = URL.createObjectURL(translatedImageBlob);
+                              // Replace the image with the translated one
+                              hideLoading(img);
+                              replaceImage(img, objectUrl);
+                              replaceSourceSet(img, objectUrl);
+                            });
+                        } 
+                      });
+                    }, 1000); // Poll every second
+                  })
+                })
               })
               .catch(error => console.error('Error:', error));
             }
