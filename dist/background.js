@@ -13,9 +13,32 @@ chrome.storage.sync.get({
     if (changeInfo.status === 'complete' && tab.active && items.enabled) {
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        args: [items],
-        function: (items) => {
+        args: [items,tab],
+        function: (items,tab) => {
           const proxyUrl = 'https://corsproxy.io/?';
+
+          // Create a URL object from tab.url
+          const urlObj = new URL(tab.url);
+          // Split the hostname into parts
+          const parts = urlObj.hostname.split('.');
+          // Get the last two parts of the hostname
+          const domain = parts.slice(-2).join('.');
+          switch (domain) {
+            case 'hitomi.com':
+              var startwait = 700;
+              break;
+            case 'nhentai.net':
+              var startwait = 500;
+              break;
+            case 'klmanga.com':
+              var startwait = 1000;
+              break;
+            case 'klz9.com': 
+              var startwait = 1000;
+              break;
+            default:
+              var startwait =500;
+          }
 
           // Function to get pixel count of an image
           function getPixelCount(img) {
@@ -132,7 +155,7 @@ chrome.storage.sync.get({
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'deepl');
+            formData.append('translator', 'offline');
             formData.append('tgt_lang', target_language);
 
             return fetch(apiUrl, {
@@ -229,7 +252,7 @@ chrome.storage.sync.get({
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'deepl');
+            formData.append('translator', 'offline');
             formData.append('tgt_lang', target_language);
 
             return fetch(apiUrl, {
@@ -244,7 +267,7 @@ chrome.storage.sync.get({
             })
             .then(data => {
               // Return an object that includes both task_id and status
-              if (!data.taskId || data.status !== 'successful') {
+              if (!data.task_id || data.status !== 'successful') {
                 throw new Error(`{ taskId: ${data.task_id}, status: ${data.status} }`);
               } else {
               return { taskId: data.task_id, status: data.status };
@@ -336,7 +359,7 @@ chrome.storage.sync.get({
                 .catch(error => console.error('Error:', error));
               }
             }
-          },600)
+          },startwait)
         }
       });
     }
