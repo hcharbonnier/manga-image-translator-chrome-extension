@@ -28,7 +28,7 @@ chrome.storage.sync.get({
               var startwait = 700;
               break;
             case 'nhentai.net':
-              var startwait = 0;
+              var startwait = 500;
               break;
             case 'klmanga.com':
               var startwait = 1000;
@@ -155,7 +155,7 @@ chrome.storage.sync.get({
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'deepl');
+            formData.append('translator', 'offline');
             formData.append('tgt_lang', target_language);
 
             return fetch(apiUrl, {
@@ -252,7 +252,7 @@ chrome.storage.sync.get({
             formData.append('size', 'X');
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
-            formData.append('translator', 'deepl');
+            formData.append('translator', 'offline');
             formData.append('tgt_lang', target_language);
 
             return fetch(apiUrl, {
@@ -267,7 +267,7 @@ chrome.storage.sync.get({
             })
             .then(data => {
               // Return an object that includes both task_id and status
-              if (!data.taskId || data.status !== 'successful') {
+              if (!data.task_id || data.status !== 'successful') {
                 throw new Error(`{ taskId: ${data.task_id}, status: ${data.status} }`);
               } else {
               return { taskId: data.task_id, status: data.status };
