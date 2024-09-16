@@ -24,7 +24,7 @@ chrome.storage.sync.get({
           // Get the last two parts of the hostname
           const domain = parts.slice(-2).join('.');
           switch (domain) {
-            case 'hitomi.com':
+            case 'hitomi.la':
               var startwait = 700;
               break;
             case 'nhentai.net':
@@ -156,7 +156,7 @@ chrome.storage.sync.get({
             formData.append('detector', 'auto');
             formData.append('direction', 'auto');
             formData.append('translator', 'offline');
-            formData.append('tgt_lang', target_language);
+            formData.append('target_lang', target_language);
 
             return fetch(apiUrl, {
               method: 'POST',
