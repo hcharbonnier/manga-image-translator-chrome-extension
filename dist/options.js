@@ -37,7 +37,15 @@ function restoreOptions() {
     updateIcon(items.enabled);
   });
 }
-  
+
+// Purge cache
+function purgeCache() {
+  chrome.storage.local.clear(function() {
+    console.log('Cache purged');
+    alert('Cache has been purged.');
+  });
+}
+
 //Update the icon when the extension is loaded
 document.addEventListener('DOMContentLoaded', function() {
   chrome.storage.sync.get({
@@ -54,16 +62,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var apiUrlInput = document.getElementById('apiUrl');
     var targetLanguageSelect = document.getElementById('target_language');
     var submitButton = document.getElementById('submit');
-  
+    var purgeCacheButton = document.getElementById('purgeCache');
+
     enabledCheckbox.addEventListener('change', function() {
       submitButton.click();
-      //if (enabledCheckbox.checked) {
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          tabs.forEach(function(tab) {
-            chrome.tabs.reload(tab.id);
-          });
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        tabs.forEach(function(tab) {
+          chrome.tabs.reload(tab.id);
         });
-      //}
+      });
     });
   
     apiUrlInput.addEventListener('change', function() {
@@ -73,8 +80,20 @@ document.addEventListener('DOMContentLoaded', function() {
     targetLanguageSelect.addEventListener('change', function() {
       submitButton.click();
     });
+  
+    purgeCacheButton.addEventListener('click', function() {
+      chrome.storage.local.clear(function() {
+        var error = chrome.runtime.lastError;
+        if (error) {
+          console.error(error);
+        } else {
+          console.log('Cache purged successfully.');
+          alert('Cache purged successfully.');
+        }
+      });
+    });
   });
-
+  
   // Check if the API URL is valid
   document.addEventListener('DOMContentLoaded', function() {
     var apiUrlInput = document.getElementById('apiUrl');
@@ -83,27 +102,46 @@ document.addEventListener('DOMContentLoaded', function() {
   
     apiUrlInput.addEventListener('input', function() {
       var apiUrl = apiUrlInput.value;
-      fetch(`${apiUrl}/queue-size`)
-        .then(response => response.json())
-        .then(data => {
-          if (!data.hasOwnProperty('size')) {
-            var logMessage = '&#10060;';
-            console.log(logMessage);
-            statusSpan.innerHTML = logMessage;
-            statusInput.value = logMessage;
+      fetch(`${apiUrl}/`)
+        .then(response => {
+          if (response.ok) {
+            statusSpan.textContent = 'API URL is valid';
+            statusSpan.style.color = 'green';
           } else {
-            var logMessage = '&#9989;';
-            console.log(logMessage);
-            statusSpan.innerHTML = logMessage;
-            statusInput.value = logMessage;
+            statusSpan.textContent = 'API URL is invalid';
+            statusSpan.style.color = 'red';
           }
         })
         .catch(error => {
-          var logMessage = '&#10060;';
-          console.log(logMessage);
-          statusSpan.innerHTML = logMessage;
-          statusSpan.innerHTML = logMessage;
-          statusInput.value = logMessage;
+          statusSpan.textContent = 'API URL is invalid';
+          statusSpan.style.color = 'red';
         });
     });
   });
+  
+  function restoreOptions() {
+    chrome.storage.sync.get({
+      enabled: false,
+      apiUrl: '',
+      target_language: 'ENG'
+    }, function(items) {
+      document.getElementById('enabled').checked = items.enabled;
+      document.getElementById('apiUrl').value = items.apiUrl;
+      document.getElementById('target_language').value = items.target_language;
+    });
+  }
+  
+  function saveOptions(event) {
+    event.preventDefault();
+    var enabled = document.getElementById('enabled').checked;
+    var apiUrl = document.getElementById('apiUrl').value;
+    var target_language = document.getElementById('target_language').value;
+  
+    chrome.storage.sync.set({
+      enabled: enabled,
+      apiUrl: apiUrl,
+      target_language: target_language
+    }, function() {
+      console.log('Options saved.');
+    });
+  }
