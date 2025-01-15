@@ -320,20 +320,20 @@ chrome.storage.sync.get({
 
           setTimeout(async function() {
             const images = document.getElementsByTagName('img');
-  
+          
             for (let img of images) {
-              if (getPixelCount(img) > 700000 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated')) {
+              if (getPixelCount(img) > 700000 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
                 // Store the original src in a data attribute
                 img.dataset.originalSrc = img.src;
-
+          
                 const urlObj = new URL(img.dataset.originalSrc);
                 const parts = urlObj.hostname.split('.');
                 const domain = parts.slice(-2).join('.');
                 const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}_${items.colorize ? 'colorized' : 'original'}`;
-
-                // Check if the image has already been translated
-                console.log(`Checking cache for ${cacheKey}`);
-                chrome.storage.local.get(cacheKey, async function(result) {
+                const processingKey = `${cacheKey}_processing`;
+          
+                // Check if the image is already being processed
+                chrome.storage.local.get([cacheKey, processingKey], async function(result) {
                   if (result[cacheKey]) {
                     // Convert base64 to blob URL and use it
                     const base64Data = result[cacheKey];
@@ -343,10 +343,52 @@ chrome.storage.sync.get({
                     replaceImage(img, objectUrl);
                     replaceSourceSet(img, objectUrl);
                     img.setAttribute('data-translated', 'true');
+                  } else if (result[processingKey]) {
+                    // Wait until the image is processed
+                    console.log(`Image is being processed, waiting for ${cacheKey}`);
+                    let loadingDiv = showLoading(img);
+                    loadingDiv = document.querySelector('.spinner-manga');
+                    if (loadingDiv) {
+                      loadingDiv.innerHTML = `
+                        <div style="
+                          border: 16px solid #f3f3f3;
+                          border-top: 16px solid #3498db;
+                          border-radius: 50%;
+                          width: 120px;
+                          height: 120px;
+                          animation: spin 4s linear infinite;
+                        ">
+                        <p style="
+                          color: white;
+                          text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+                        ">Already processing<br> waiting for result</p>
+                        </div>
+
+                      `;
+                    }
+                    const interval = setInterval(async () => {
+                      chrome.storage.local.get(cacheKey, async function(result) {
+                        if (result[cacheKey]) {
+                          clearInterval(interval);
+                          const base64Data = result[cacheKey];
+                          const blob = await (await fetch(base64Data)).blob();
+                          const objectUrl = URL.createObjectURL(blob);
+                          console.log(`Found translated image in cache for ${cacheKey}`);
+                          replaceImage(img, objectUrl);
+                          replaceSourceSet(img, objectUrl);
+                          img.setAttribute('data-translated', 'true');
+                          hideLoading();
+                        }
+                      });
+                    }, 1000); // Check every second
                   } else {
                     console.log(`Translation not found in cache for ${cacheKey}`);
                     let loadingDiv = showLoading(img);
-
+          
+                    // Mark the image as being processed
+                    img.setAttribute('data-processing', 'true');
+                    chrome.storage.local.set({ [processingKey]: true });
+          
                     try {
                       const response = await submit(img);
                       await process(response, img);
@@ -354,6 +396,9 @@ chrome.storage.sync.get({
                       console.error('Error:', error);
                     } finally {
                       hideLoading();
+                      // Remove the processing attribute
+                      img.removeAttribute('data-processing');
+                      chrome.storage.local.remove(processingKey);
                     }
                   }
                 });
