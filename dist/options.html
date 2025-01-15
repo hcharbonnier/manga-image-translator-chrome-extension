@@ -2,9 +2,7 @@
 <html>
   <head>
     <title>Image Replacer Options</title>
-    <!-- Include Bootstrap CSS -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <!-- Link to your CSS file -->
     <link rel="stylesheet" href="css/styles.css">
   </head>
   <body>
@@ -12,8 +10,14 @@
       <form id="optionsForm">
         <div class="form-group">
           <div class="custom-control custom-switch">
-            <input type="checkbox" class="custom-control-input" id="enabled" >
+            <input type="checkbox" class="custom-control-input" id="enabled">
             <label class="custom-control-label" for="enabled">Enable Image Replacement</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="custom-control custom-switch">
+            <input type="checkbox" class="custom-control-input" id="colorize">
+            <label class="custom-control-label" for="colorize">Colorize</label>
           </div>
         </div>
         <div class="form-group">

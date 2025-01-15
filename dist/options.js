@@ -23,11 +23,13 @@ function saveOptions(e) {
 function restoreOptions() {
   chrome.storage.sync.get({
     enabled: true,
+    colorize: false,
     apiUrl: '',
     status: '',
     target_language: 'ENG'
   }, function(items) {
     document.getElementById('enabled').checked = items.enabled;
+    document.getElementById('colorize').checked = items.colorize; // Restore colorize option
     document.getElementById('apiUrl').value = items.apiUrl;
     document.getElementById('status').value = items.status;
     document.getElementById('statusSpan').innerHTML = items.status;
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('optionsForm').addEventListener('submit', saveOptions);
   document.addEventListener('DOMContentLoaded', function() {
     var enabledCheckbox = document.getElementById('enabled');
+    var colorizeCheckbox = document.getElementById('colorize');
     var apiUrlInput = document.getElementById('apiUrl');
     var targetLanguageSelect = document.getElementById('target_language');
     var submitButton = document.getElementById('submit');
@@ -71,6 +74,10 @@ document.addEventListener('DOMContentLoaded', function() {
           chrome.tabs.reload(tab.id);
         });
       });
+    });
+
+    colorizeCheckbox.addEventListener('change', function() {
+      submitButton.click();
     });
   
     apiUrlInput.addEventListener('change', function() {
@@ -122,10 +129,12 @@ document.addEventListener('DOMContentLoaded', function() {
   function restoreOptions() {
     chrome.storage.sync.get({
       enabled: false,
+      colorize: false,
       apiUrl: '',
       target_language: 'ENG'
     }, function(items) {
       document.getElementById('enabled').checked = items.enabled;
+      document.getElementById('colorize').checked = items.colorize;
       document.getElementById('apiUrl').value = items.apiUrl;
       document.getElementById('target_language').value = items.target_language;
     });
@@ -134,11 +143,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function saveOptions(event) {
     event.preventDefault();
     var enabled = document.getElementById('enabled').checked;
+    var colorize = document.getElementById('colorize').checked
     var apiUrl = document.getElementById('apiUrl').value;
     var target_language = document.getElementById('target_language').value;
   
     chrome.storage.sync.set({
       enabled: enabled,
+      colorize: colorize,
       apiUrl: apiUrl,
       target_language: target_language
     }, function() {

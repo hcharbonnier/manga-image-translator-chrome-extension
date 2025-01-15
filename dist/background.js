@@ -1,6 +1,7 @@
 let items = {};
 chrome.storage.sync.get({
   enabled: false,
+  colorize: false,
   target_language: 'ENG',
   apiUrl: '',
 }, function(fetchedItems) {
@@ -126,9 +127,13 @@ chrome.storage.sync.get({
             });
           }
 
-          async function submitImage(apiUrl, target_language, imageBlob) {
+          async function submitImage(apiUrl, target_language, colorize, imageBlob) {
             if (!imageBlob) {
               return { taskId: "0", status: "error" };
+            }
+            let colorizer = "none";
+            if (colorize) {
+              colorizer = "mc2"
             }
             console.log("Posting image to API" + apiUrl);
           
@@ -137,8 +142,18 @@ chrome.storage.sync.get({
                 detector: "default",
                 detection_size: 1536
               },
+              inpainter: {
+                inpainter: "default"
+              },
               render: {
-                direction: "auto"
+                direction: "auto",
+                font_size_offset: 10,
+                font_size_minimum: 20
+              },
+              colorizer: {
+                colorizer: colorizer,
+                colorization_size: 576,
+                denoise_sigma: 30
               },
               translator: {
                 translator: "offline",
@@ -191,7 +206,7 @@ chrome.storage.sync.get({
                     const urlObj = new URL(img.dataset.originalSrc);
                     const parts = urlObj.hostname.split('.');
                     const domain = parts.slice(-2).join('.');
-                    const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}`;
+                    const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}_${items.colorize ? 'colorized' : 'original'}`;
 
                     console.log(`Storing translated image data for ${cacheKey}`);
 
@@ -272,16 +287,16 @@ chrome.storage.sync.get({
             try {
               console.log("trying to submit blob...");
               blob = await getImageBlob(img);
-              return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, blob);
+              return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, blob);
             } catch (error) {
               try {
                 console.log("trying to fetch image and submit it's blob instead...")
                 blob = await fetchImage(img.src);
-                return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, blob);
+                return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, blob);
               } catch (error) {
                 try {
                   console.log("trying to submit url instead...")
-                  return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, img.src);  
+                  return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, img.src);  
                 } catch {
                   hideLoading(img);
                   return;
@@ -307,14 +322,14 @@ chrome.storage.sync.get({
             const images = document.getElementsByTagName('img');
   
             for (let img of images) {
-              if (getPixelCount(img) > 500000 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated')) {
+              if (getPixelCount(img) > 700000 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated')) {
                 // Store the original src in a data attribute
                 img.dataset.originalSrc = img.src;
 
                 const urlObj = new URL(img.dataset.originalSrc);
                 const parts = urlObj.hostname.split('.');
                 const domain = parts.slice(-2).join('.');
-                const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}`;
+                const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}_${items.colorize ? 'colorized' : 'original'}`;
 
                 // Check if the image has already been translated
                 console.log(`Checking cache for ${cacheKey}`);
@@ -353,6 +368,9 @@ chrome.storage.sync.get({
   chrome.storage.onChanged.addListener(function(changes, areaName) {
     if (areaName === 'sync' && changes.enabled) {
       items.enabled = changes.enabled.newValue;
+    }
+    if (areaName === 'sync' && changes.colorize) {
+      items.colorize = changes.colorize.newValue;
     }
     if (areaName === 'sync' && changes.apiUrl) {
       items.apiUrl = changes.apiUrl.newValue;
