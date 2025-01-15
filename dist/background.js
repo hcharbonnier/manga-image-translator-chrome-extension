@@ -213,25 +213,8 @@ chrome.storage.sync.get({
                     chrome.storage.local.set({ [cacheKey]: base64Data });
                   } else if (statusCode >= 1 && statusCode <= 4) {
                     console.log(decodedData);
-                    const loadingDiv = document.querySelector('.spinner-manga');
-                    if (loadingDiv) {
-                      loadingDiv.innerHTML = `
-                        <div style="
-                          border: 16px solid #f3f3f3;
-                          border-top: 16px solid #3498db;
-                          border-radius: 50%;
-                          width: 120px;
-                          height: 120px;
-                          animation: spin 4s linear infinite;
-                        ">
-                        <p style="
-                          color: white;
-                          text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-                        ">${decodedData}</p>
-                        </div>
-
-                      `;
-                    }
+                    hideLoading();
+                    const loadingDiv = showLoading(img, decodedData);
                   }
                   buffer = buffer.slice(totalSize);
                 }
@@ -241,9 +224,8 @@ chrome.storage.sync.get({
             }
           }
 
-          function showLoading(img) {
+          function showLoading(img,txt) {
             let loadingDiv = document.createElement('div');
-            loadingDiv.className = 'spinner-manga';
             loadingDiv.style.position = 'absolute';
             loadingDiv.style.top = img.offsetTop + 'px';
             loadingDiv.style.left = img.offsetLeft + 'px';
@@ -253,6 +235,10 @@ chrome.storage.sync.get({
             loadingDiv.style.justifyContent = 'center';
             loadingDiv.style.alignItems = 'center';
             loadingDiv.style.zIndex = 10000;
+            let loadingTextDiv = loadingDiv.cloneNode(true);
+
+            loadingDiv.className = 'spinner-manga';
+            loadingTextDiv.className = 'spinner-text-manga';
             loadingDiv.innerHTML = `
               <div style="
                 border: 16px solid #f3f3f3;
@@ -263,6 +249,15 @@ chrome.storage.sync.get({
                 animation: spin 4s linear infinite;
               "></div>
             `;
+
+            loadingTextDiv.innerHTML = `
+              <div style="
+                color: white;
+                text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+              ">
+                <p>${txt}</p>
+              </div>
+            `;
             let style = document.createElement('style');
             style.innerHTML = `
               @keyframes spin {
@@ -271,6 +266,7 @@ chrome.storage.sync.get({
               }
             `;
             document.body.appendChild(loadingDiv);
+            document.body.appendChild(loadingTextDiv);
             document.head.appendChild(style);
             return loadingDiv;
           }
@@ -279,6 +275,11 @@ chrome.storage.sync.get({
             let loadingDiv = document.body.querySelector('.spinner-manga');
             if (loadingDiv) {
               loadingDiv.parentNode.removeChild(loadingDiv);
+            }
+
+            let loadingTextDiv = document.body.querySelector('.spinner-text-manga');
+            if (loadingTextDiv) {
+              loadingTextDiv.parentNode.removeChild(loadingTextDiv);
             }
           }
 
@@ -346,26 +347,9 @@ chrome.storage.sync.get({
                   } else if (result[processingKey]) {
                     // Wait until the image is processed
                     console.log(`Image is being processed, waiting for ${cacheKey}`);
-                    let loadingDiv = showLoading(img);
-                    loadingDiv = document.querySelector('.spinner-manga');
-                    if (loadingDiv) {
-                      loadingDiv.innerHTML = `
-                        <div style="
-                          border: 16px solid #f3f3f3;
-                          border-top: 16px solid #3498db;
-                          border-radius: 50%;
-                          width: 120px;
-                          height: 120px;
-                          animation: spin 4s linear infinite;
-                        ">
-                        <p style="
-                          color: white;
-                          text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-                        ">Already processing<br> waiting for result</p>
-                        </div>
+                    hideLoading();
+                    let loadingDiv = showLoading(img,'Already processing<br> waiting for result');
 
-                      `;
-                    }
                     const interval = setInterval(async () => {
                       chrome.storage.local.get(cacheKey, async function(result) {
                         if (result[cacheKey]) {
@@ -383,7 +367,8 @@ chrome.storage.sync.get({
                     }, 1000); // Check every second
                   } else {
                     console.log(`Translation not found in cache for ${cacheKey}`);
-                    let loadingDiv = showLoading(img);
+                    hideLoading();
+                    let loadingDiv = showLoading(img,'Processing');
           
                     // Mark the image as being processed
                     img.setAttribute('data-processing', 'true');
