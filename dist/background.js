@@ -147,7 +147,7 @@ chrome.storage.sync.get({
               },
               render: {
                 direction: "auto",
-                font_size_offset: 10,
+                font_size_offset: 5,
                 font_size_minimum: 20
               },
               colorizer: {
@@ -321,12 +321,28 @@ chrome.storage.sync.get({
 
           setTimeout(async function() {
             const images = document.getElementsByTagName('img');
-          
+            const uniqueUrls = new Set();
+            const images_uniq= [];
+
             for (let img of images) {
-              if (getPixelCount(img) > 700000 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
+              const imgUrl = img.src;
+          
+              // Add the image to images_uniq if the URL is not already in the set
+            if (!uniqueUrls.has(imgUrl)) {
+                uniqueUrls.add(imgUrl);
+                images_uniq.push(img);
+              }
+            }
+
+            for (let img of images_uniq) {
+
+              const rect = img.getBoundingClientRect();  // Get the bounding rectangle of the image. Usefull to detect if the image is visible or not
+
+              console.log(`Image found at coordinates: top=${rect.top}, left=${rect.left}, width=${rect.width}, height=${rect.height}`);
+              if (getPixelCount(img) > 700000 &&  rect.width > 0 && rect.height > 0 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
                 // Store the original src in a data attribute
                 img.dataset.originalSrc = img.src;
-          
+
                 const urlObj = new URL(img.dataset.originalSrc);
                 const parts = urlObj.hostname.split('.');
                 const domain = parts.slice(-2).join('.');
@@ -349,7 +365,7 @@ chrome.storage.sync.get({
                     console.log(`Image is being processed, waiting for ${cacheKey}`);
                     hideLoading();
                     let loadingDiv = showLoading(img,'Already processing<br> waiting for result');
-
+          
                     const interval = setInterval(async () => {
                       chrome.storage.local.get(cacheKey, async function(result) {
                         if (result[cacheKey]) {
@@ -366,14 +382,12 @@ chrome.storage.sync.get({
                       });
                     }, 1000); // Check every second
                   } else {
-                    console.log(`Translation not found in cache for ${cacheKey}`);
-                    hideLoading();
-                    let loadingDiv = showLoading(img,'Processing');
-          
                     // Mark the image as being processed
                     img.setAttribute('data-processing', 'true');
                     chrome.storage.local.set({ [processingKey]: true });
-          
+                    console.log(`Translation not found in cache for ${cacheKey}`);
+                    hideLoading();
+                    let loadingDiv = showLoading(img,'Processing');
                     try {
                       const response = await submit(img);
                       await process(response, img);

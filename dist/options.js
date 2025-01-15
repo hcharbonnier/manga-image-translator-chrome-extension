@@ -42,10 +42,7 @@ function restoreOptions() {
 
 // Purge cache
 function purgeCache() {
-  chrome.storage.local.clear(function() {
-    console.log('Cache purged');
-    alert('Cache has been purged.');
-  });
+  chrome.storage.local.clear();
 }
 
 //Update the icon when the extension is loaded
@@ -95,7 +92,6 @@ document.addEventListener('DOMContentLoaded', function() {
           console.error(error);
         } else {
           console.log('Cache purged successfully.');
-          alert('Cache purged successfully.');
         }
       });
     });
