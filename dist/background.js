@@ -2,6 +2,7 @@ let items = {};
 chrome.storage.sync.get({
   enabled: false,
   colorize: false,
+  translate: true,
   target_language: 'ENG',
   apiUrl: '',
 }, function(fetchedItems) {
@@ -23,7 +24,7 @@ chrome.storage.sync.get({
           const urlObj = new URL(tab.url);
           const parts = urlObj.hostname.split('.');
           const domain = parts.slice(-2).join('.');
-          let startwait = 500;
+          let startwait = 100;
           switch (domain) {
             case 'hitomi.la':
               startwait = 700;
@@ -127,20 +128,27 @@ chrome.storage.sync.get({
             });
           }
 
-          async function submitImage(apiUrl, target_language, colorize, imageBlob) {
+          async function submitImage(apiUrl, target_language, colorize, translate ,imageBlob,imageHeight) {
             if (!imageBlob) {
               return { taskId: "0", status: "error" };
             }
+
             let colorizer = "none";
             if (colorize) {
               colorizer = "mc2"
             }
+
+            let translator = "original";
+            if (translate) {
+              translator = "offline";
+            }
+
             console.log("Posting image to API" + apiUrl);
           
             const config = {
               detector: {
                 detector: "default",
-                detection_size: 1536
+                detection_size: imageHeight
               },
               inpainter: {
                 inpainter: "default"
@@ -152,11 +160,11 @@ chrome.storage.sync.get({
               },
               colorizer: {
                 colorizer: colorizer,
-                colorization_size: 576,
-                denoise_sigma: 30
+                colorization_size: imageHeight,
+                denoise_sigma: 0
               },
               translator: {
-                translator: "offline",
+                translator: translator,
                 target_lang: target_language
               }
             };
@@ -206,7 +214,7 @@ chrome.storage.sync.get({
                     const urlObj = new URL(img.dataset.originalSrc);
                     const parts = urlObj.hostname.split('.');
                     const domain = parts.slice(-2).join('.');
-                    const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}_${items.colorize ? 'colorized' : 'original'}`;
+                    const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`;
 
                     console.log(`Storing translated image data for ${cacheKey}`);
 
@@ -288,16 +296,16 @@ chrome.storage.sync.get({
             try {
               console.log("trying to submit blob...");
               blob = await getImageBlob(img);
-              return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, blob);
+              return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, items.translate, blob, img.naturalHeight);
             } catch (error) {
               try {
                 console.log("trying to fetch image and submit it's blob instead...")
                 blob = await fetchImage(img.src);
-                return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, blob);
+                return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, items.translate, blob,img.naturalHeight);
               } catch (error) {
                 try {
                   console.log("trying to submit url instead...")
-                  return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, img.src);  
+                  return await submitImage(`${items.apiUrl}/translate/with-form/image/stream`, items.target_language, items.colorize, items.translate, img.src,576);
                 } catch {
                   hideLoading(img);
                   return;
@@ -346,7 +354,7 @@ chrome.storage.sync.get({
                 const urlObj = new URL(img.dataset.originalSrc);
                 const parts = urlObj.hostname.split('.');
                 const domain = parts.slice(-2).join('.');
-                const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.target_language}_${items.colorize ? 'colorized' : 'original'}`;
+                const cacheKey = `${domain}${urlObj.pathname}${urlObj.search}_${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`;
                 const processingKey = `${cacheKey}_processing`;
           
                 // Check if the image is already being processed
@@ -415,6 +423,9 @@ chrome.storage.sync.get({
     }
     if (areaName === 'sync' && changes.colorize) {
       items.colorize = changes.colorize.newValue;
+    }
+    if (areaName === 'sync' && changes.translate) {
+      items.translate = changes.translate.newValue;
     }
     if (areaName === 'sync' && changes.apiUrl) {
       items.apiUrl = changes.apiUrl.newValue;

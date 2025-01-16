@@ -24,12 +24,14 @@ function restoreOptions() {
   chrome.storage.sync.get({
     enabled: true,
     colorize: false,
+    translate: true,
     apiUrl: '',
     status: '',
     target_language: 'ENG'
   }, function(items) {
     document.getElementById('enabled').checked = items.enabled;
     document.getElementById('colorize').checked = items.colorize; // Restore colorize option
+    document.getElementById('translate').checked = items.translate; // Restore translate option
     document.getElementById('apiUrl').value = items.apiUrl;
     document.getElementById('status').value = items.status;
     document.getElementById('statusSpan').innerHTML = items.status;
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('DOMContentLoaded', function() {
     var enabledCheckbox = document.getElementById('enabled');
     var colorizeCheckbox = document.getElementById('colorize');
+    var translateCheckbox = document.getElementById('translate');
     var apiUrlInput = document.getElementById('apiUrl');
     var targetLanguageSelect = document.getElementById('target_language');
     var submitButton = document.getElementById('submit');
@@ -74,6 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     colorizeCheckbox.addEventListener('change', function() {
+      submitButton.click();
+    });
+
+    translateCheckbox.addEventListener('change', function() {
       submitButton.click();
     });
   
@@ -126,11 +133,13 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.get({
       enabled: false,
       colorize: false,
+      translate: true,
       apiUrl: '',
       target_language: 'ENG'
     }, function(items) {
       document.getElementById('enabled').checked = items.enabled;
       document.getElementById('colorize').checked = items.colorize;
+      document.getElementById('translate').checked = items.translate;
       document.getElementById('apiUrl').value = items.apiUrl;
       document.getElementById('target_language').value = items.target_language;
     });
@@ -139,13 +148,15 @@ document.addEventListener('DOMContentLoaded', function() {
   function saveOptions(event) {
     event.preventDefault();
     var enabled = document.getElementById('enabled').checked;
-    var colorize = document.getElementById('colorize').checked
+    var colorize = document.getElementById('colorize').checked;
+    var translate = document.getElementById('translate').checked;
     var apiUrl = document.getElementById('apiUrl').value;
     var target_language = document.getElementById('target_language').value;
   
     chrome.storage.sync.set({
       enabled: enabled,
       colorize: colorize,
+      translate: translate,
       apiUrl: apiUrl,
       target_language: target_language
     }, function() {
