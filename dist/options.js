@@ -15,10 +15,10 @@ function saveOptions(e) {
   let colorize = document.getElementById('colorize').checked;
   let translate = document.getElementById('translate').checked;
 
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     let currentWebsite = new URL(tabs[0].url).hostname;
 
-    chrome.storage.sync.get({ enabledWebsites: {} }, function(items) {
+    chrome.storage.sync.get({ enabledWebsites: {} }, function (items) {
       let enabledWebsites = items.enabledWebsites;
       enabledWebsites[currentWebsite] = isEnabled;
 
@@ -29,7 +29,7 @@ function saveOptions(e) {
         target_language: target_language,
         colorize: colorize,
         translate: translate
-      }, function() {
+      }, function () {
         updateIcon(isEnabled);
       });
     });
@@ -45,15 +45,14 @@ function restoreOptions() {
     apiUrl: '',
     status: '',
     target_language: 'ENG'
-  }, function(items) {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+  }, function (items) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       let currentWebsite = new URL(tabs[0].url).hostname;
       document.getElementById('enabled').checked = items.enabledWebsites[currentWebsite] || false;
       document.getElementById('colorize').checked = items.colorize;
       document.getElementById('translate').checked = items.translate;
       document.getElementById('apiUrl').value = items.apiUrl;
       document.getElementById('status').value = items.status;
-      //document.getElementById('statusSpan').innerHTML = items.status;
       document.getElementById('target_language').value = items.target_language;
       document.getElementById('enabledLabel').textContent = `Enabled for ${currentWebsite}`;
 
@@ -64,24 +63,38 @@ function restoreOptions() {
 
 // Purge cache
 function purgeCache() {
-  chrome.storage.local.clear();
+  chrome.storage.local.clear(function () {
+    var error = chrome.runtime.lastError;
+    if (error) {
+      console.error(error);
+    } else {
+      console.log('Cache purged successfully.');
+    }
+  });
 }
 
-// Update the icon when the extension is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  chrome.storage.sync.get({
-    enabledWebsites: {}
-  }, function(items) {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+// Reload tabs
+function reloadTabs() {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    tabs.forEach(function (tab) {
+      chrome.tabs.reload(tab.id);
+    });
+  });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function () {
+  restoreOptions();
+
+  chrome.storage.sync.get({ enabledWebsites: {} }, function (items) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       let currentWebsite = new URL(tabs[0].url).hostname;
       updateIcon(items.enabledWebsites[currentWebsite] || false);
     });
   });
-});
 
-document.addEventListener('DOMContentLoaded', restoreOptions);
-document.getElementById('optionsForm').addEventListener('submit', saveOptions);
-document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('optionsForm').addEventListener('submit', saveOptions);
+
   var enabledCheckbox = document.getElementById('enabled');
   var colorizeCheckbox = document.getElementById('colorize');
   var translateCheckbox = document.getElementById('translate');
@@ -90,57 +103,34 @@ document.addEventListener('DOMContentLoaded', function() {
   var submitButton = document.getElementById('submit');
   var purgeCacheButton = document.getElementById('purgeCache');
 
-  function reloadTabs() {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-      tabs.forEach(function(tab) {
-        chrome.tabs.reload(tab.id);
-      });
-    });
-  }
-
-  enabledCheckbox.addEventListener('change', function() {
+  enabledCheckbox.addEventListener('change', function () {
     submitButton.click();
     reloadTabs();
   });
 
-  colorizeCheckbox.addEventListener('change', function() {
+  colorizeCheckbox.addEventListener('change', function () {
     submitButton.click();
     reloadTabs();
   });
 
-  translateCheckbox.addEventListener('change', function() {
+  translateCheckbox.addEventListener('change', function () {
     submitButton.click();
     reloadTabs();
   });
 
-  apiUrlInput.addEventListener('change', function() {
+  apiUrlInput.addEventListener('change', function () {
     submitButton.click();
   });
 
-  targetLanguageSelect.addEventListener('change', function() {
+  targetLanguageSelect.addEventListener('change', function () {
     submitButton.click();
     reloadTabs();
   });
 
-  purgeCacheButton.addEventListener('click', function() {
-    chrome.storage.local.clear(function() {
-      var error = chrome.runtime.lastError;
-      if (error) {
-        console.error(error);
-      } else {
-        console.log('Cache purged successfully.');
-      }
-    });
-  });
-});
+  purgeCacheButton.addEventListener('click', purgeCache);
 
-// Check if the API URL is valid
-document.addEventListener('DOMContentLoaded', function() {
-  var apiUrlInput = document.getElementById('apiUrl');
-  var statusInput = document.getElementById('status');
   var statusSpan = document.getElementById('statusSpan');
-
-  apiUrlInput.addEventListener('input', function() {
+  apiUrlInput.addEventListener('input', function () {
     var apiUrl = apiUrlInput.value;
     fetch(`${apiUrl}/`)
       .then(response => {

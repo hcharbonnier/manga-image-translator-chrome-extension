@@ -5,25 +5,27 @@ chrome.storage.sync.get({
   target_language: 'ENG',
   apiUrl: '',
   enabledWebsites: {},
-}, function(fetchedItems) {
+}, function (fetchedItems) {
   items = fetchedItems;
 
   function updateIcon(tabId) {
-    chrome.tabs.get(tabId, function(tab) {
-      if (tab) {
-        const urlObj = new URL(tab.url);
-        const domain = urlObj.hostname;
-        const isEnabled = items.enabledWebsites[domain] || false;
-        chrome.action.setIcon({
-          path: isEnabled ? 'icons/128x128.png' : 'icons/128x128-disabled.png',
-          tabId: tabId
-        });
-      }
+    chrome.tabs.get(tabId, (tab) => {
+      if (!tab) return;
+
+      const domain = new URL(tab.url).hostname;
+      const isEnabled = items.enabledWebsites[domain] || false;
+      const iconPath = isEnabled ? 'icons/128x128.png' : 'icons/128x128-disabled.png';
+
+      chrome.action.setIcon({ path: iconPath, tabId });
     });
   }
 
-  chrome.tabs.onActivated.addListener(function(activeInfo) {
-    updateIcon(activeInfo.tabId);
+  chrome.tabs.onActivated.addListener(function (activeInfo) {
+    try {
+      updateIcon(activeInfo.tabId);
+    } catch (error) {
+      console.error('Error updating icon on tab activation:', error);
+    }
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -40,14 +42,18 @@ chrome.storage.sync.get({
           target: { tabId: tab.id },
           args: [items, tab],
           function: async (items, tab) => {
+
+            if (!items.translate && !items.colorize) {
+              console.log('Both translate and colorize are disabled. Doing nothing.');
+              return;
+            }
+
             const proxyUrls = [
               'https://corsproxy.io/?',
               'https://api.codetabs.com/v1/proxy/?quest=',
             ];
 
-            const urlObj = new URL(tab.url);
-            const parts = urlObj.hostname.split('.');
-            const domain = parts.slice(-2).join('.');
+            const domain = new URL(tab.url).hostname.split('.').slice(-2).join('.');
             let startwait = 300;
             switch (domain) {
               case 'hitomi.la':
@@ -59,7 +65,7 @@ chrome.storage.sync.get({
               case 'klmanga.com':
                 startwait = 1000;
                 break;
-              case 'klz9.com': 
+              case 'klz9.com':
                 startwait = 1000;
                 break;
             }
@@ -73,12 +79,12 @@ chrome.storage.sync.get({
             }
 
             function updateImageSourceSet(img, newSrc) {
-              let pictureElement = img.parentElement;
+              const pictureElement = img.parentElement;
               if (pictureElement && pictureElement.tagName === 'PICTURE') {
-                let sources = pictureElement.getElementsByTagName('source');
-                let url = new URL(newSrc);
-                let extension = url.pathname.split('.').pop();
-                let typeMap = {
+                const sources = pictureElement.getElementsByTagName('source');
+                const url = new URL(newSrc);
+                const extension = url.pathname.split('.').pop();
+                const typeMap = {
                   'jpg': 'image/jpeg',
                   'jpeg': 'image/jpeg',
                   'png': 'image/png',
@@ -88,8 +94,8 @@ chrome.storage.sync.get({
                   'avif': 'image/avif',
                   'jxl': 'image/jxl'
                 };
-                let newType = typeMap[extension];
-                for (let source of sources) {
+                const newType = typeMap[extension];
+                for (const source of sources) {
                   source.srcset = newSrc;
                   if (newType) {
                     source.type = newType;
@@ -100,56 +106,62 @@ chrome.storage.sync.get({
 
             async function fetchImageBlob(img) {
               if (!img.src || img.src.startsWith('chrome://')) {
-                throw new Error('Cannot fetch chrome:// URL or img.src is undefined.')
+                throw new Error('Cannot fetch chrome:// URL or img.src is undefined.');
               }
-            
-              var newImg = new Image();
+
+              const newImg = new Image();
               newImg.crossOrigin = "Anonymous";
               newImg.src = img.src;
-            
-              var canvas = document.createElement('canvas');
+
+              await new Promise((resolve, reject) => {
+                newImg.onload = resolve;
+                newImg.onerror = reject;
+              });
+
+              const canvas = document.createElement('canvas');
               canvas.width = newImg.naturalWidth;
               canvas.height = newImg.naturalHeight;
-            
-              var ctx = canvas.getContext('2d');
+
+              const ctx = canvas.getContext('2d');
               ctx.drawImage(newImg, 0, 0, canvas.width, canvas.height);
-            
+
               return new Promise((resolve, reject) => {
                 canvas.toBlob(blob => {
                   if (blob) {
                     resolve(blob);
                   } else {
-                    reject('Canvas to Blob conversion failed');
+                    reject(new Error('Canvas to Blob conversion failed'));
                   }
                 });
               });
             }
 
-            function fetchImageWithRetry(url) {
+            async function fetchImageWithRetry(url) {
               if (url.startsWith('chrome://')) {
-                return Promise.reject('Cannot fetch chrome:// URL');
+                return Promise.reject(new Error('Cannot fetch chrome:// URL'));
               }
 
-              const fetchWithRetry = (urlToFetch) => {
-                return fetch(urlToFetch)
-                  .then(response => {
-                    return response.blob().then(blob => {
-                      if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                      }
-                      return blob;
-                    });
-                  });
+              const fetchWithRetry = async (urlToFetch) => {
+                const response = await fetch(urlToFetch);
+                const blob = await response.blob();
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return blob;
               };
 
-              return fetchWithRetry(url).catch(() => {
-                // Retry with each proxy URL if the initial fetch fails
-                let promise = Promise.reject();
+              try {
+                return await fetchWithRetry(url);
+              } catch {
                 for (const proxyUrl of proxyUrls) {
-                  promise = promise.catch(() => fetchWithRetry(proxyUrl + url));
+                  try {
+                    return await fetchWithRetry(proxyUrl + url);
+                  } catch {
+                    // Continue to the next proxy URL
+                  }
                 }
-                return promise;
-              });
+                return Promise.reject(new Error('All fetch attempts failed'));
+              }
             }
 
             async function submitImageToApi(apiUrl, target_language, colorize, translate, img, imageBlob) {
@@ -157,18 +169,11 @@ chrome.storage.sync.get({
                 return { taskId: "0", status: "error" };
               }
 
-              let colorizer = "none";
-              if (colorize) {
-                colorizer = "mc2"
-              }
+              const colorizer = colorize ? "mc2" : "none";
+              const translator = translate ? "offline" : "original";
 
-              let translator = "original";
-              if (translate) {
-                translator = "offline";
-              }
+              console.log(`Posting image to API ${apiUrl}`);
 
-              console.log("Posting image to API" + apiUrl);
-            
               const config = {
                 detector: {
                   detector: "default",
@@ -200,7 +205,7 @@ chrome.storage.sync.get({
               const formData = new FormData();
               formData.append('image', imageBlob);
               formData.append('config', JSON.stringify(config));
-            
+
               const response = await fetch(apiUrl, {
                 method: 'POST',
                 body: formData
@@ -209,58 +214,58 @@ chrome.storage.sync.get({
             }
 
             async function calculateBlobHash(blob) {
-              console.log("Image blob :size " + blob.size);
               const arrayBuffer = await blob.arrayBuffer();
               const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-              return Array.prototype.map.call(new Uint8Array(hashBuffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+              return Array.from(new Uint8Array(hashBuffer))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
             }
 
             async function generateCacheKeys(img, blob) {
               const urlObj = new URL(img.dataset.originalSrc);
-              const parts = urlObj.hostname.split('.');
-              const domain = parts.slice(-2).join('.');
+              const domain = urlObj.hostname.split('.').slice(-2).join('.');
 
-              params=`${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`
-              hash=await calculateBlobHash(blob);
+              const params = `${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`;
+              const hash = await calculateBlobHash(blob);
               const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${params}`;
               const cacheKey1 = `${hash}_${params}`;
-              console.log("cachekey0: " + cacheKey0);
-              console.log("cachekey1: " + cacheKey1);
-              return([cacheKey0, cacheKey1]);
+
+              return [cacheKey0, cacheKey1];
             }
 
             async function generateProcessingCacheKey(img) {
               const urlObj = new URL(img.dataset.originalSrc);
-              const parts = urlObj.hostname.split('.');
-              const domain = parts.slice(-2).join('.');
+              const domain = urlObj.hostname.split('.').slice(-2).join('.');
 
-              params=`${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`
+              const params = `${items.translate ? items.target_language : 'none'}_${items.colorize ? 'colorized' : 'original'}`;
               const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${params}_processing`;
-              return([cacheKey0]);
+              return [cacheKey0];
             }
 
             async function checkCacheForImage(img, blob) {
-              let cacheKeys = await generateCacheKeys(img, blob);
-              console.log("cachekeys: " + cacheKeys);
-              for (let cacheKey of cacheKeys) {
-                console.log("looking in cache for key cacheKey: " + cacheKey);
-                let result = await new Promise((resolve) => {
-                  chrome.storage.local.get(cacheKey, function(data) {
+              const cacheKeys = await generateCacheKeys(img, blob);
+              console.log(`cachekeys: ${cacheKeys}`);
+
+              for (const cacheKey of cacheKeys) {
+                console.log(`looking in cache for key cacheKey: ${cacheKey}`);
+                const result = await new Promise((resolve) => {
+                  chrome.storage.local.get(cacheKey, (data) => {
                     resolve(data);
                   });
                 });
                 if (result[cacheKey]) {
-                  return { found: true , key: cacheKey, value: result[cacheKey] };
+                  return { found: true, key: cacheKey, value: result[cacheKey] };
                 }
               }
-              return { found: false , key: cacheKeys[0], value: null };
+              return { found: false, key: cacheKeys[0], value: null };
             }
 
             async function checkProcessingCacheForImage(img) {
-              let cacheKeys = await generateProcessingCacheKey(img);
-              for (let cacheKey of cacheKeys) {
-                let result = await new Promise((resolve) => {
-                  chrome.storage.local.get(cacheKey, function(data) {
+              const cacheKeys = await generateProcessingCacheKey(img);
+
+              for (const cacheKey of cacheKeys) {
+                const result = await new Promise((resolve) => {
+                  chrome.storage.local.get(cacheKey, (data) => {
                     resolve(data);
                   });
                 });
@@ -272,25 +277,24 @@ chrome.storage.sync.get({
             }
 
             async function processApiResponse(response, img, imgBlob) {
-              console.log("Processing response...");
-              console.log("blob size2: " + imgBlob.size);
               if (response.ok) {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let buffer = new Uint8Array();
+
                 while (true) {
                   const { done, value } = await reader.read();
                   if (done) break;
+
                   const newBuffer = new Uint8Array(buffer.length + value.length);
                   newBuffer.set(buffer);
                   newBuffer.set(value, buffer.length);
                   buffer = newBuffer;
+
                   while (buffer.length >= 5) {
                     const dataSize = new DataView(buffer.buffer).getUint32(1, false);
                     const totalSize = 5 + dataSize;
-                    if (buffer.length < totalSize) {
-                      break;
-                    }
+                    if (buffer.length < totalSize) break;
 
                     const statusCode = buffer[0];
                     const data = buffer.slice(5, totalSize);
@@ -302,19 +306,19 @@ chrome.storage.sync.get({
                       updateImageSource(img, objectUrl);
                       updateImageSourceSet(img, objectUrl);
                       img.setAttribute('data-translated', 'true'); // Mark image as translated
+
                       // Convert blob to base64 and store it
                       const base64Data = await convertBlobToBase64(new Blob([data], { type: 'application/octet-stream' }));
+                      const cacheKeys = await generateCacheKeys(clonedImg, imgBlob);
 
-                      let cacheKeys = await generateCacheKeys(clonedImg, imgBlob);
-                      for (let cacheKey of cacheKeys) {
+                      for (const cacheKey of cacheKeys) {
                         chrome.storage.local.set({ [cacheKey]: base64Data });
                         console.log(`Storing translated image data for ${cacheKey}`);
                       }
-
                     } else if (statusCode >= 1 && statusCode <= 4) {
                       console.log(decodedData);
                       hideLoadingSpinner();
-                      const loadingDiv = showLoadingSpinner(img, decodedData);
+                      showLoadingSpinner(img, decodedData);
                     }
                     buffer = buffer.slice(totalSize);
                   }
@@ -325,17 +329,20 @@ chrome.storage.sync.get({
             }
 
             function showLoadingSpinner(img, txt) {
-              let loadingDiv = document.createElement('div');
-              loadingDiv.style.position = 'absolute';
-              loadingDiv.style.top = img.offsetTop + 'px';
-              loadingDiv.style.left = img.offsetLeft + 'px';
-              loadingDiv.style.width = img.offsetWidth + 'px';
-              loadingDiv.style.height = img.offsetHeight + 'px';
-              loadingDiv.style.display = 'flex';
-              loadingDiv.style.justifyContent = 'center';
-              loadingDiv.style.alignItems = 'center';
-              loadingDiv.style.zIndex = 10000;
-              let loadingTextDiv = loadingDiv.cloneNode(true);
+              const loadingDiv = document.createElement('div');
+              Object.assign(loadingDiv.style, {
+                position: 'absolute',
+                top: `${img.offsetTop}px`,
+                left: `${img.offsetLeft}px`,
+                width: `${img.offsetWidth}px`,
+                height: `${img.offsetHeight}px`,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 10000
+              });
+
+              const loadingTextDiv = loadingDiv.cloneNode(true);
 
               loadingDiv.className = 'spinner-manga';
               loadingTextDiv.className = 'spinner-text-manga';
@@ -358,38 +365,39 @@ chrome.storage.sync.get({
                   <p>${txt}</p>
                 </div>
               `;
-              let style = document.createElement('style');
+
+              const style = document.createElement('style');
               style.innerHTML = `
                 @keyframes spin {
                   0% { transform: rotate(0deg); }
                   100% { transform: rotate(360deg); }
                 }
               `;
+
               document.body.appendChild(loadingDiv);
               document.body.appendChild(loadingTextDiv);
               document.head.appendChild(style);
+
               return loadingDiv;
             }
 
             function hideLoadingSpinner() {
-              let loadingDiv = document.body.querySelector('.spinner-manga');
+              const loadingDiv = document.querySelector('.spinner-manga');
               if (loadingDiv) {
-                loadingDiv.parentNode.removeChild(loadingDiv);
+                loadingDiv.remove();
               }
 
-              let loadingTextDiv = document.body.querySelector('.spinner-text-manga');
+              const loadingTextDiv = document.querySelector('.spinner-text-manga');
               if (loadingTextDiv) {
-                loadingTextDiv.parentNode.removeChild(loadingTextDiv);
+                loadingTextDiv.remove();
               }
             }
 
             async function getImageBlob(img) {
               try {
-                blob = await fetchImageBlob(img);
-                return blob;
+                return await fetchImageBlob(img);
               } catch (error) {
-                blob = await fetchImageWithRetry(img.src);
-                return blob;
+                return await fetchImageWithRetry(img.src);
               }
             }
 
@@ -400,7 +408,7 @@ chrome.storage.sync.get({
                 console.log("submitted blob...");
                 return res;
               } catch (error) {
-                hideLoadingSpinner(img);
+                hideLoadingSpinner();
                 return;
               }
             }
@@ -414,14 +422,14 @@ chrome.storage.sync.get({
               });
             }
 
-            setTimeout(async function() {
+            setTimeout(async function () {
               const images = document.getElementsByTagName('img');
               const uniqueUrls = new Set();
-              const images_uniq= [];
+              const images_uniq = [];
 
-              for (let img of images) {
+              for (const img of images) {
                 const imgUrl = img.src;
-            
+
                 // Add the image to images_uniq if the URL is not already in the set
                 if (!uniqueUrls.has(imgUrl)) {
                   uniqueUrls.add(imgUrl);
@@ -429,21 +437,19 @@ chrome.storage.sync.get({
                 }
               }
 
-              for (let img of images_uniq) {
+              for (const img of images_uniq) {
+                const rect = img.getBoundingClientRect();  // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
 
-                const rect = img.getBoundingClientRect();  // Get the bounding rectangle of the image. Usefull to detect if the image is visible or not
-
-                console.log(`Image found at coordinates: top=${rect.top}, left=${rect.left}, width=${rect.width}, height=${rect.height}`);
-                if (getPixelCount(img) > 300000 &&  rect.width > 0 && rect.height > 0 && !img.src.startsWith('chrome://')  && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
+                if (getPixelCount(img) > 300000 && rect.width > 0 && rect.height > 0 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
                   // Store the original src in a data attribute
                   img.dataset.originalSrc = img.src;
-                  imgBlob=await getImageBlob(img);
+                  const imgBlob = await getImageBlob(img);
                   const cache = await checkCacheForImage(img, imgBlob);
-                  let cacheKey = cache.key;
+                  const cacheKey = cache.key;
                   const cache_processing = await checkProcessingCacheForImage(img);
                   if (cache.found) {
                     // Convert base64 to blob URL and use it
-                    let loadingDiv = showLoadingSpinner(img,'Getting from cache');
+                    showLoadingSpinner(img, 'Getting from cache');
                     const base64Data = cache.value;
                     const blob = await (await fetch(base64Data)).blob();
                     const objectUrl = URL.createObjectURL(blob);
@@ -452,13 +458,13 @@ chrome.storage.sync.get({
                     updateImageSourceSet(img, objectUrl);
                     img.setAttribute('data-translated', 'true');
                     hideLoadingSpinner();
-                  } else if (cache_processing){
+                  } else if (cache_processing) {
                     // Wait until the image is processed
                     console.log(`Image is being processed`);
                     hideLoadingSpinner();
-                    let loadingDiv = showLoadingSpinner(img,'Already processing<br> waiting for result.');
+                    showLoadingSpinner(img, 'Already processing<br> waiting for result.');
                     const interval = setInterval(async () => {
-                      chrome.storage.local.get(cacheKey, async function(result) {
+                      chrome.storage.local.get(cacheKey, async function (result) {
                         console.log(cacheKey);
                         if (result[cacheKey]) {
                           clearInterval(interval);
@@ -467,7 +473,7 @@ chrome.storage.sync.get({
                           const objectUrl = URL.createObjectURL(blob);
                           console.log(`Found translated image in cache for ${cacheKey}`);
                           updateImageSource(img, objectUrl);
-                          updateImageSourceSet(img, objectUrl);                        
+                          updateImageSourceSet(img, objectUrl);
                           img.setAttribute('data-translated', 'true');
                           hideLoadingSpinner();
                         }
@@ -481,7 +487,7 @@ chrome.storage.sync.get({
                     console.log(`Translation not found in cache for ${cacheKey}`);
                     console.log(`Processing image ${processingKey}...`);
                     hideLoadingSpinner();
-                    let loadingDiv = showLoadingSpinner(img,'Processing');
+                    showLoadingSpinner(img, 'Processing');
                     try {
                       const response = await submitImage(img, imgBlob);
                       await processApiResponse(response, img, imgBlob);
@@ -503,21 +509,23 @@ chrome.storage.sync.get({
     }
   });
 
-  chrome.storage.onChanged.addListener(function(changes, areaName) {
-    if (areaName === 'sync' && changes.enabledWebsites) {
-      items.enabledWebsites = changes.enabledWebsites.newValue;
-    }
-    if (areaName === 'sync' && changes.colorize) {
-      items.colorize = changes.colorize.newValue;
-    }
-    if (areaName === 'sync' && changes.translate) {
-      items.translate = changes.translate.newValue;
-    }
-    if (areaName === 'sync' && changes.apiUrl) {
-      items.apiUrl = changes.apiUrl.newValue;
-    }
-    if (areaName === 'sync' && changes.target_language) {
-      items.target_language = changes.target_language.newValue;
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'sync') {
+      if (changes.enabledWebsites) {
+        items.enabledWebsites = changes.enabledWebsites.newValue;
+      }
+      if (changes.colorize) {
+        items.colorize = changes.colorize.newValue;
+      }
+      if (changes.translate) {
+        items.translate = changes.translate.newValue;
+      }
+      if (changes.apiUrl) {
+        items.apiUrl = changes.apiUrl.newValue;
+      }
+      if (changes.target_language) {
+        items.target_language = changes.target_language.newValue;
+      }
     }
   });
 });
