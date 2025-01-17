@@ -49,8 +49,10 @@ chrome.storage.sync.get({
             }
 
             const proxyUrls = [
+              'https://api.codetabs.com/v1/proxy/?quest=', //best
+              'https://api.cors.lol/?url=', //best
               'https://corsproxy.io/?',
-              'https://api.codetabs.com/v1/proxy/?quest=',
+              'https://api.allorigins.win/raw?url=' //slow
             ];
 
             const domain = new URL(tab.url).hostname.split('.').slice(-2).join('.');
@@ -170,7 +172,7 @@ chrome.storage.sync.get({
               }
 
               const colorizer = colorize ? "mc2" : "none";
-              const translator = translate ? "offline" : "original";
+              const translator = translate ? "nllb_big" : "original";
 
               console.log(`Posting image to API ${apiUrl}`);
 
