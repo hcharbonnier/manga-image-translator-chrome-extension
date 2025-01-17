@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "manga-image-translator-chrome-extension",
-    "version": "2.1.0",
+    "version": "2.5.0",
     "action": {
       "default_popup": "options.html"
     },
