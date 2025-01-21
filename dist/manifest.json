@@ -10,14 +10,16 @@
       "declarativeContent",
       "storage",
       "tabs",
-      "scripting"
+      "scripting",
+      "activeTab"
     ],
     "background": {
       "service_worker": "background.js"
     },
     "host_permissions": [
       "http://localhost/*",
-      "*://*/*"
+      "*://*/*",
+      "<all_urls>"
     ],
     "icons": {
        "128": "icons/128x128.png",

@@ -5,32 +5,49 @@ function updateIcon(isEnabled) {
   });
 }
 
+// Function to update the visibility of the refresh icon
+function updateRefreshIconVisibility() {
+  chrome.runtime.sendMessage({ type: 'settings-updated' });
+}
+
+// Function to hide the refresh icon
+function hideRefreshIcon() {
+  chrome.runtime.sendMessage({ type: 'hideRefreshIcon' });
+}
+
+// Function to handle messages for updating the refresh icon visibility
+function handleRefreshIconMessage(request) {
+  if (request.type === 'updateRefreshIcon') {
+    document.getElementById('refresh_page').style.display = request.visible ? 'block' : 'none';
+  }
+}
+
 // Saves options to chrome.storage
 function saveOptions(e) {
-  e.preventDefault();
+  if (e) e.preventDefault();
   let isEnabled = document.getElementById('enabled').checked;
   let apiUrl = document.getElementById('apiUrl').value;
   let status = document.getElementById('status').value;
   let target_language = document.getElementById('target_language').value;
   let colorize = document.getElementById('colorize').checked;
-  let translate = document.getElementById('translate').checked;
 
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     let currentWebsite = new URL(tabs[0].url).hostname;
 
-    chrome.storage.sync.get({ enabledWebsites: {} }, function (items) {
-      let enabledWebsites = items.enabledWebsites;
-      enabledWebsites[currentWebsite] = isEnabled;
+    chrome.storage.sync.get('quickSettings', function (data) {
+      let quickSettings = data.quickSettings || {};
+      quickSettings.enabledWebsites = quickSettings.enabledWebsites || {};
+      quickSettings.enabledWebsites[currentWebsite] = isEnabled;
+      quickSettings.apiUrl = apiUrl;
+      quickSettings.status = status;
+      quickSettings.target_language = target_language;
+      quickSettings.colorize = colorize;
 
-      chrome.storage.sync.set({
-        enabledWebsites: enabledWebsites,
-        apiUrl: apiUrl,
-        status: status,
-        target_language: target_language,
-        colorize: colorize,
-        translate: translate
-      }, function () {
+      chrome.storage.sync.set({ quickSettings }, function () {
         updateIcon(isEnabled);
+        updateRefreshIconVisibility();
+        chrome.runtime.sendMessage({ type: 'settings-updated' });
+        chrome.runtime.sendMessage({ type: 'settings-modified' }); // Added message to background.js
       });
     });
   });
@@ -38,25 +55,34 @@ function saveOptions(e) {
 
 // Restores options from chrome.storage
 function restoreOptions() {
-  chrome.storage.sync.get({
-    enabledWebsites: {},
-    colorize: false,
-    translate: true,
-    apiUrl: '',
-    status: '',
-    target_language: 'ENG'
-  }, function (items) {
+  chrome.storage.sync.get('quickSettings', function (data) {
+    const items = data.quickSettings || {
+      enabledWebsites: {},
+      colorize: false,
+      apiUrl: '',
+      status: '',
+      target_language: 'ENG'
+    };
+
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       let currentWebsite = new URL(tabs[0].url).hostname;
       document.getElementById('enabled').checked = items.enabledWebsites[currentWebsite] || false;
       document.getElementById('colorize').checked = items.colorize;
-      document.getElementById('translate').checked = items.translate;
       document.getElementById('apiUrl').value = items.apiUrl;
       document.getElementById('status').value = items.status;
       document.getElementById('target_language').value = items.target_language;
       document.getElementById('enabledLabel').textContent = `Enabled for ${currentWebsite}`;
 
       updateIcon(items.enabledWebsites[currentWebsite] || false);
+
+      // Restore the state of the refresh icon
+      chrome.storage.local.get('refreshIconVisible', function (data) {
+        if (data.refreshIconVisible) {
+          document.getElementById('refresh_page').style.display = 'block';
+        } else {
+          document.getElementById('refresh_page').style.display = 'none';
+        }
+      });
     });
   });
 }
@@ -73,81 +99,59 @@ function purgeCache() {
   });
 }
 
-// Reload tabs
-function reloadTabs() {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    tabs.forEach(function (tab) {
-      chrome.tabs.reload(tab.id);
-    });
-  });
-}
-
 // Event listeners
 document.addEventListener('DOMContentLoaded', function () {
   restoreOptions();
 
-  chrome.storage.sync.get({ enabledWebsites: {} }, function (items) {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      let currentWebsite = new URL(tabs[0].url).hostname;
-      updateIcon(items.enabledWebsites[currentWebsite] || false);
+  // Add event listeners to save settings in real-time
+  const inputs = document.querySelectorAll('#optionsForm input, #optionsForm select');
+  inputs.forEach(input => {
+    input.addEventListener('change', saveOptions);
+  });
+
+  // Add event listener to reset button
+//  document.getElementById('refresh_icon').addEventListener('click', resetOptions);
+
+  // Add event listener to refresh icon if it exists
+  const refreshPage = document.getElementById('refresh_page');
+  if (refreshPage) {
+    refreshPage.addEventListener('click', function () {
+      chrome.runtime.sendMessage({ type: 'reloadCurrentTab' });
+      chrome.runtime.sendMessage({ type: 'hideRefreshIcon' });
+      chrome.storage.local.set({ refreshIconVisible: false });
     });
+  }
+
+  // Show the refresh icon when needed
+  document.getElementById('enabled').addEventListener('change', updateRefreshIconVisibility);
+  document.getElementById('colorize').addEventListener('change', updateRefreshIconVisibility);
+  document.getElementById('target_language').addEventListener('change', updateRefreshIconVisibility);
+
+  // Add event listener to purge cache button
+  document.getElementById('purgeCache').addEventListener('click', purgeCache);
+
+  chrome.runtime.onMessage.addListener(handleRefreshIconMessage);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+  const refreshPage = document.getElementById('refresh_page');
+
+  function updateRefreshIconVisibility() {
+    // Logic to determine if the refresh icon should be visible
+    // For example, if any setting is changed, show the refresh icon
+    refreshPage.style.display = 'block';
+  }
+
+  // Add event listeners to all settings inputs
+  const inputs = document.querySelectorAll('#optionsForm input, #optionsForm select');
+  inputs.forEach(input => {
+    input.addEventListener('change', updateRefreshIconVisibility);
   });
 
-  document.getElementById('optionsForm').addEventListener('submit', saveOptions);
-
-  var enabledCheckbox = document.getElementById('enabled');
-  var colorizeCheckbox = document.getElementById('colorize');
-  var translateCheckbox = document.getElementById('translate');
-  var apiUrlInput = document.getElementById('apiUrl');
-  var targetLanguageSelect = document.getElementById('target_language');
-  var submitButton = document.getElementById('submit');
-  var purgeCacheButton = document.getElementById('purgeCache');
-
-  enabledCheckbox.addEventListener('change', function () {
-    submitButton.click();
-    reloadTabs();
-  });
-
-  colorizeCheckbox.addEventListener('change', function () {
-    submitButton.click();
-    reloadTabs();
-  });
-
-  translateCheckbox.addEventListener('change', function () {
-    submitButton.click();
-    reloadTabs();
-  });
-
-  apiUrlInput.addEventListener('change', function () {
-    submitButton.click();
-  });
-
-  targetLanguageSelect.addEventListener('change', function () {
-    submitButton.click();
-    reloadTabs();
-  });
-
-  purgeCacheButton.addEventListener('click', purgeCache);
-
-  var statusSpan = document.getElementById('statusSpan');
-  apiUrlInput.addEventListener('input', function () {
-    var apiUrl = apiUrlInput.value;
-    fetch(`${apiUrl}/`)
-      .then(response => {
-        if (response.ok) {
-          statusSpan.textContent = 'API URL is valid';
-          statusSpan.style.color = 'green';
-          document.getElementById('status').value = 'API URL is valid';
-        } else {
-          statusSpan.textContent = 'API URL is invalid';
-          statusSpan.style.color = 'red';
-          document.getElementById('status').value = 'API URL is invalid';
-        }
-      })
-      .catch(error => {
-        statusSpan.textContent = 'API URL is invalid';
-        statusSpan.style.color = 'red';
-        document.getElementById('status').value = 'API URL is invalid';
-      });
+  // Initial check
+  chrome.storage.local.get('refreshIconVisible', function(data) {
+    if (data.refreshIconVisible) {
+      refreshPage.style.display = 'block';
+    }
   });
 });

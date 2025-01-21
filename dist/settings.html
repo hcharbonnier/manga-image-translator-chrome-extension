@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Image Replacer Settings</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+  </head>
+  <body>
+    <div class="container-fluid mt-5 full-width">
+      <form id="optionsForm">
+        <div class="row">
+          <div class="col-md-3">
+            <h3>Extension Settings</h3>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="capture" name="capture">
+                <label class="custom-control-label" for="capture">Prefer screenshot to capture images</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="disable_cache" name="disable_cache">
+                <label class="custom-control-label" for="disable_cache">Disable Cache</label>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <h3>Translator Settings</h3>
+            <div class="form-group">
+              <button type="button" id="resetButton" class="btn btn-secondary">Reset to Default</button>
+            </div>
+            <div class="form-group">
+              <label for="render_renderer">Render Renderer:</label>
+              <select class="form-control" id="render_renderer" name="render_renderer">
+                <option value="default">Default</option>
+                <option value="manga2eng">Manga2Eng</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="render_alignment">Render Alignment:</label>
+              <select class="form-control" id="render_alignment" name="render_alignment">
+                <option value="auto">Auto</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="render_disable_font_border" name="render_disable_font_border">
+                <label class="custom-control-label" for="render_disable_font_border">Disable Font Border</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="render_font_size_offset">Font Size Offset:</label>
+              <input type="number" class="form-control" id="render_font_size_offset" name="render_font_size_offset">
+            </div>
+            <div class="form-group">
+              <label for="render_font_size_minimum">Font Size Minimum:</label>
+              <input type="number" class="form-control" id="render_font_size_minimum" name="render_font_size_minimum">
+            </div>
+            <div class="form-group">
+              <label for="render_direction">Render Direction:</label>
+              <select class="form-control" id="render_direction" name="render_direction">
+                <option value="auto">Auto</option>
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="render_uppercase" name="render_uppercase">
+                <label class="custom-control-label" for="render_uppercase">Uppercase</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="render_lowercase" name="render_lowercase">
+                <label class="custom-control-label" for="render_lowercase">Lowercase</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="render_gimp_font">Gimp Font:</label>
+              <input type="text" class="form-control" id="render_gimp_font" name="render_gimp_font">
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="render_no_hyphenation" name="render_no_hyphenation">
+                <label class="custom-control-label" for="render_no_hyphenation">No Hyphenation</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="render_font_color">Font Color:</label>
+              <input type="text" class="form-control" id="render_font_color" name="render_font_color">
+            </div>
+            <div class="form-group">
+              <label for="render_line_spacing">Line Spacing:</label>
+              <input type="number" class="form-control" id="render_line_spacing" name="render_line_spacing">
+            </div>
+            <div class="form-group">
+              <label for="render_font_size">Font Size:</label>
+              <input type="number" class="form-control" id="render_font_size" name="render_font_size">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
+              <label for="upscale_upscaler">Upscaler:</label>
+              <select class="form-control" id="upscale_upscaler" name="upscale_upscaler">
+                <option value="waifu2x">Waifu2x</option>
+                <option value="esrgan">ESRGAN</option>
+                <option value="4xultrasharp">4xUltraSharp</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="upscale_revert_upscaling" name="upscale_revert_upscaling">
+                <label class="custom-control-label" for="upscale_revert_upscaling">Revert Upscaling</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="upscale_upscale_ratio">Upscale Ratio:</label>
+              <input type="number" class="form-control" id="upscale_upscale_ratio" name="upscale_upscale_ratio">
+            </div>
+            <div class="form-group">
+              <label for="translator_translator">Translator:</label>
+              <select class="form-control" id="translator_translator" name="translator_translator">
+                <option value="youdao">Youdao</option>
+                <option value="baidu">Baidu</option>
+                <option value="deepl">DeepL</option>
+                <option value="papago">Papago</option>
+                <option value="caiyun">Caiyun</option>
+                <option value="gpt3">GPT-3</option>
+                <option value="gpt3.5">GPT-3.5</option>
+                <option value="gpt4">GPT-4</option>
+                <option value="none">None</option>
+                <option value="original">Original</option>
+                <option value="sakura">Sakura</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="groq">Groq</option>
+                <option value="offline">Offline</option>
+                <option value="nllb">NLLB</option>
+                <option value="nllb_big">NLLB Big</option>
+                <option value="sugoi">Sugoi</option>
+                <option value="jparacrawl">JParaCrawl</option>
+                <option value="jparacrawl_big">JParaCrawl Big</option>
+                <option value="m2m100">M2M100</option>
+                <option value="m2m100_big">M2M100 Big</option>
+                <option value="mbart50">MBart50</option>
+                <option value="qwen2">Qwen2</option>
+                <option value="qwen2_big">Qwen2 Big</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="translator_no_text_lang_skip" name="translator_no_text_lang_skip">
+                <label class="custom-control-label" for="translator_no_text_lang_skip">No Text Lang Skip</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="detector_detector">Detector:</label>
+              <select class="form-control" id="detector_detector" name="detector_detector">
+                <option value="default">Default</option>
+                <option value="dbconvnext">DBConvNext</option>
+                <option value="ctd">CTD</option>
+                <option value="craft">CRAFT</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="detector_detection_size">Detection Size:</label>
+              <input type="number" class="form-control" id="detector_detection_size" name="detector_detection_size">
+            </div>
+            <div class="form-group">
+              <label for="detector_text_threshold">Text Threshold:</label>
+              <input type="number" class="form-control" id="detector_text_threshold" name="detector_text_threshold">
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="detector_det_rotate" name="detector_det_rotate">
+                <label class="custom-control-label" for="detector_det_rotate">Rotate Detection</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="detector_det_auto_rotate" name="detector_det_auto_rotate">
+                <label class="custom-control-label" for="detector_det_auto_rotate">Auto Rotate Detection</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="detector_det_invert" name="detector_det_invert">
+                <label class="custom-control-label" for="detector_det_invert">Invert Detection</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="detector_det_gamma_correct" name="detector_det_gamma_correct">
+                <label class="custom-control-label" for="detector_det_gamma_correct">Gamma Correct Detection</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="detector_box_threshold">Box Threshold:</label>
+              <input type="number" class="form-control" id="detector_box_threshold" name="detector_box_threshold">
+            </div>
+            <div class="form-group">
+              <label for="detector_unclip_ratio">Unclip Ratio:</label>
+              <input type="number" class="form-control" id="detector_unclip_ratio" name="detector_unclip_ratio">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
+              <label for="inpainter_inpainter">Inpainter:</label>
+              <select class="form-control" id="inpainter_inpainter" name="inpainter_inpainter">
+                <option value="default">Default</option>
+                <option value="lama_large">Lama Large</option>
+                <option value="lama_mpe">Lama MPE</option>
+                <option value="sd">SD</option>
+                <option value="none">None</option>
+                <option value="original">Original</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="inpainter_inpainting_size">Inpainting Size:</label>
+              <input type="number" class="form-control" id="inpainter_inpainting_size" name="inpainter_inpainting_size">
+            </div>
+            <div class="form-group">
+              <label for="inpainter_inpainting_precision">Inpainting Precision:</label>
+              <select class="form-control" id="inpainter_inpainting_precision" name="inpainter_inpainting_precision">
+                <option value="fp32">FP32</option>
+                <option value="fp16">FP16</option>
+                <option value="bf16">BF16</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="ocr_use_mocr_merge" name="ocr_use_mocr_merge">
+                <label class="custom-control-label" for="ocr_use_mocr_merge">Use Mocr Merge</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="ocr_ocr">OCR:</label>
+              <select class="form-control" id="ocr_ocr" name="ocr_ocr">
+                <option value="32px">32px</option>
+                <option value="48px">48px</option>
+                <option value="48px_ctc">48px CTC</option>
+                <option value="mocr">Mocr</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ocr_min_text_length">Min Text Length:</label>
+              <input type="number" class="form-control" id="ocr_min_text_length" name="ocr_min_text_length">
+            </div>
+            <div class="form-group">
+              <label for="ocr_ignore_bubble">Ignore Bubble:</label>
+              <input type="number" class="form-control" id="ocr_ignore_bubble" name="ocr_ignore_bubble">
+            </div>
+            <div class="form-group">
+              <label for="kernel_size">Kernel Size:</label>
+              <input type="number" class="form-control" id="kernel_size" name="kernel_size">
+            </div>
+            <div class="form-group">
+              <label for="mask_dilation_offset">Mask Dilation Offset:</label>
+              <input type="number" class="form-control" id="mask_dilation_offset" name="mask_dilation_offset">
+            </div>
+          </div>
+        </div>
+        <button type="submit" id="submit" class="btn btn-primary" hidden></button>
+      </form>
+    </div>
+    <div class="form-group">
+      <a href="options.html" target="_blank">Go to Options</a>
+    </div>
+    <script src="settings.js"></script>
+  </body>
+</html>
