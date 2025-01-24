@@ -256,7 +256,7 @@
               startwait = 0;
               break;
             case 'multporn.net':
-              startwait = 1000;
+              startwait = 0;
               break;
             case 'nhentai.net':
               startwait = 0;
