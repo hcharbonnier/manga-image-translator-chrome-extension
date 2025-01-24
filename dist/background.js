@@ -223,9 +223,9 @@
       updateIcon(tabId);
       const urlObj = new URL(tab.url);
       const domain = urlObj.hostname;
+      console.log(`Tab updated: ${domain}`);
 
       if (quickSettings.enabledWebsites[domain]) {
-
         chrome.tabs.sendMessage(tab.id, { action: "waitForImages" }, async (response) => {
           if (response?.allImagesLoaded) {
             async function getScreenshot_if_needed(advancedSettings) {
@@ -239,531 +239,551 @@
                 target: { tabId: tab.id },
                 args: [quickSettings, advancedSettings, tab, screenshotUrl],
                 function: async (quickSettings, advancedSettings, tab, screenshotUrl) => {
-
-                  const proxyUrls = [
-                    'https://api.codetabs.com/v1/proxy/?quest=', //best
-                    'https://api.cors.lol/?url=', //best
-                    'https://corsproxy.io/?',
-                    'https://api.allorigins.win/raw?url=' //slow
-                  ];
-
                   const domain = new URL(tab.url).hostname.split('.').slice(-2).join('.');
-
-                  function getPixelCount(img) {
-                    return img.naturalWidth * img.naturalHeight;
+                  let startwait = 50;
+                  switch (domain) {
+                    case 'hitomi.la':
+                      startwait = 100;
+                      break;
+                    case 'nhentai.net':
+                      startwait = 100;
+                      break;
+                    case 'klmanga.com':
+                      startwait = 100;
+                      break;
+                    case 'klz9.com':
+                      startwait = 100;
+                      break;
                   }
 
-                  function updateImageSource(img, newSrc) {
-                    img.src = newSrc;
-                  }
+                  console.log(`Start wait time set to: ${startwait}ms for domain: ${domain}`);
 
-                  function updateImageSourceSet(img, newSrc) {
-                    const pictureElement = img.parentElement;
-                    if (pictureElement && pictureElement.tagName === 'PICTURE') {
-                      const sources = pictureElement.getElementsByTagName('source');
-                      const url = new URL(newSrc);
-                      const extension = url.pathname.split('.').pop();
-                      const typeMap = {
-                        'jpg': 'image/jpeg',
-                        'jpeg': 'image/jpeg',
-                        'png': 'image/png',
-                        'webp': 'image/webp',
-                        'gif': 'image/gif',
-                        'svg': 'image/svg+xml',
-                        'avif': 'image/avif',
-                        'jxl': 'image/jxl'
-                      };
-                      const newType = typeMap[extension];
-                      for (const source of sources) {
-                        source.srcset = newSrc;
-                        if (newType) {
-                          source.type = newType;
-                        }
-                      }
-                    }
-                  }
+                  setTimeout(async function () {
+                    console.log('setTimeout function called');
+                    const proxyUrls = [
+                      'https://api.codetabs.com/v1/proxy/?quest=', //best
+                      'https://api.cors.lol/?url=', //best
+                      'https://corsproxy.io/?',
+                      'https://api.allorigins.win/raw?url=' //slow
+                    ];
+                    const domain = new URL(tab.url).hostname.split('.').slice(-2).join('.');
 
-                  async function fetchImageBlob(img) {
-                    if (!img.src || ! img.src.startsWith('http')) {
-                      throw new Error('Cannot fetch http* URL or img.src is undefined.');
+                    function getPixelCount(img) {
+                      return img.naturalWidth * img.naturalHeight;
                     }
 
-                    const newImg = new Image();
-                    newImg.crossOrigin = "Anonymous";
-                    newImg.src = img.src;
-
-                    await new Promise((resolve, reject) => {
-                      newImg.onload = resolve;
-                      newImg.onerror = reject;
-                    });
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = newImg.naturalWidth;
-                    canvas.height = newImg.naturalHeight;
-
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(newImg, 0, 0, canvas.width, canvas.height);
-
-                    return new Promise((resolve, reject) => {
-                      canvas.toBlob(blob => {
-                        if (blob) {
-                          resolve(blob);
-                        } else {
-                          reject(new Error('Canvas to Blob conversion failed'));
-                        }
-                      }, 'image/jpeg', 1.0);
-                    });
-                  }
-
-                  async function fetchImageWithRetry(url) {
-                    if (url.startsWith('chrome://')) {
-                      return Promise.reject(new Error('Cannot fetch chrome:// URL'));
+                    function updateImageSource(img, newSrc) {
+                      img.src = newSrc;
                     }
 
-                    const fetchWithRetry = async (urlToFetch) => {
-                      const response = await fetch(urlToFetch);
-                      const blob = await response.blob();
-                      if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                      }
-                      return blob;
-                    };
-
-                    try {
-                      return await fetchWithRetry(url);
-                    } catch {
-                      for (const proxyUrl of proxyUrls) {
-                        try {
-                          return await fetchWithRetry(proxyUrl + url);
-                        } catch {
-                          // Continue to the next proxy URL
-                        }
-                      }
-                      return Promise.reject(new Error('All fetch attempts failed'));
-                    }
-                  }
-
-                  async function captureImage(img, screenshotUrl) {
-                    const rect = img.getBoundingClientRect();
-                    const devicePixelRatio = window.devicePixelRatio || 1;
-                  
-                    const image = new Image();
-                    image.src = screenshotUrl;
-                    await new Promise((resolve) => (image.onload = resolve));
-                  
-                    console.log('Pixel ratio:', devicePixelRatio);
-                    const canvas = document.createElement('canvas');
-                    canvas.width = image.width;
-                    canvas.height = image.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.scale(devicePixelRatio, devicePixelRatio);
-                    ctx.drawImage(image, 0, 0, image.width / devicePixelRatio, image.height / devicePixelRatio);
-                  
-                    const croppedCanvas = document.createElement('canvas');
-                    croppedCanvas.width = rect.width * devicePixelRatio;
-                    croppedCanvas.height = rect.height * devicePixelRatio;
-                    const croppedCtx = croppedCanvas.getContext('2d');
-                    croppedCtx.drawImage(
-                      canvas,
-                      rect.left * devicePixelRatio,
-                      rect.top * devicePixelRatio,
-                      rect.width * devicePixelRatio,
-                      rect.height * devicePixelRatio,
-                      0,
-                      0,
-                      rect.width * devicePixelRatio,
-                      rect.height * devicePixelRatio
-                    );
-                  
-                    return new Promise((resolve) => {
-                      croppedCanvas.toBlob(resolve, 'image/jpeg', 1.0);
-                    });
-                  }
-
-                  async function getImageBlob(img) {
-                    if (advancedSettings.capture) {
-                      return await captureImage(img, screenshotUrl);
-                    }
-                    try {
-                      return await fetchImageBlob(img);
-                    } catch (error) {
-                      return await fetchImageWithRetry(img.src);
-                    }
-                  }
-
-                  function generateConfig(quickSettings, advancedSettings, img) {
-                    return {
-                      detector: {
-                        detector: advancedSettings.detector.detector,
-                        detection_size: advancedSettings.detector.detection_size,
-                        text_threshold: advancedSettings.detector.text_threshold,
-                        det_rotate: advancedSettings.det_rotate,
-                        det_auto_rotate: advancedSettings.det_auto_rotate,
-                        det_invert: advancedSettings.det_invert,
-                        det_gamma_correct: advancedSettings.det_gamma_correct,
-                        box_threshold: advancedSettings.detector.box_threshold,
-                        unclip_ratio: advancedSettings.detector.unclip_ratio
-                      },
-                      colorizer: {
-                        colorizer: quickSettings.colorize ? 'mc2' : 'none',
-                        colorization_size: img.naturalHeight || 576,
-                        denoise_sigma: 30
-                      },
-                      inpainter: {
-                        inpainter: advancedSettings.inpainter.inpainter,
-                        inpainting_size: advancedSettings.inpainter.inpainting_size,
-                        inpainting_precision: advancedSettings.inpainter.inpainting_precision
-                      },
-                      ocr: {
-                        use_mocr_merge: advancedSettings.ocr.use_mocr_merge,
-                        ocr: advancedSettings.ocr.ocr,
-                        min_text_length: advancedSettings.ocr.min_text_length,
-                        ignore_bubble: advancedSettings.ocr.ignore_bubble
-                      },
-                      render: {
-                        renderer: advancedSettings.render.renderer,
-                        alignment: advancedSettings.render.alignment,
-                        disable_font_border: advancedSettings.render.disable_font_border,
-                        font_size_offset: advancedSettings.render.font_size_offset,
-                        font_size_minimum: advancedSettings.render.font_size_minimum,
-                        direction: advancedSettings.render.direction,
-                        uppercase: advancedSettings.render.uppercase,
-                        lowercase: advancedSettings.render.lowercase,
-                        gimp_font: advancedSettings.render.gimp_font,
-                        no_hyphenation: advancedSettings.render.no_hyphenation,
-                        font_color: advancedSettings.render.font_color || null,
-                        line_spacing: advancedSettings.render.line_spacing || null,
-                        font_size: advancedSettings.render.font_size || null
-                      },
-                      translator: {
-                        translator: advancedSettings.translator.translator,
-                        target_lang: quickSettings.target_language,
-                        no_text_lang_skip: advancedSettings.translator.no_text_lang_skip,
-                        skip_lang: null,
-                        gpt_config: null,
-                        translator_chain: null,
-                        selective_translation: null
-                      },
-                      upscale: {
-                        upscaler: advancedSettings.upscale.upscaler,
-                        revert_upscaling: advancedSettings.upscale.revert_upscaling,
-                        upscale_ratio: advancedSettings.upscale.upscale_ratio
-                      },
-                      kernel_size: advancedSettings.kernel_size,
-                      mask_dilation_offset: advancedSettings.mask_dilation_offset
-                    };
-                  }
-
-                  async function submitImageToApi(apiUrl, img, imageBlob) {
-                    if (!imageBlob) {
-                      return { taskId: "0", status: "error" };
-                    }
-                    const config = generateConfig(quickSettings, advancedSettings, img);
-
-                    const formData = new FormData();
-                    formData.append('image', imageBlob);
-                    formData.append('config', JSON.stringify(config));
-
-                    const response = await fetch(apiUrl, {
-                      method: 'POST',
-                      body: formData
-                    });
-                    return response;
-                  }
-
-                  async function calculateBlobHash(blob) {
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-                    return Array.from(new Uint8Array(hashBuffer))
-                      .map(byte => byte.toString(16).padStart(2, '0'))
-                      .join('');
-                  }
-
-                  async function computeSettingsFingerprint(quickSettings, advancedSettings) {
-                    const quickSettingsString = JSON.stringify(quickSettings);
-                    const advancedSettingsString = JSON.stringify(advancedSettings);
-                    const encoder = new TextEncoder();
-                    const data = encoder.encode(quickSettingsString+advancedSettingsString);
-                    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                    return Array.from(new Uint8Array(hashBuffer))
-                      .map(byte => byte.toString(16).padStart(2, '0'))
-                      .join('');
-                  }
-
-                  async function generateCacheKeys(img, blob) {
-                    const urlObj = new URL(img.dataset.originalSrc);
-                    const domain = urlObj.hostname.split('.').slice(-2).join('.');
-
-                    const settingsHash = await computeSettingsFingerprint(quickSettings, advancedSettings);
-                    const hash = await calculateBlobHash(blob);
-                    const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}`;
-                    const cacheKey1 = `${hash}_${settingsHash}`;
-
-                    return [cacheKey0, cacheKey1];
-                  }
-
-                  async function generateProcessingCacheKey(img) {
-                    const urlObj = new URL(img.dataset.originalSrc);
-                    const domain = urlObj.hostname.split('.').slice(-2).join('.');
-
-                    const settingsHash = await computeSettingsFingerprint(quickSettings, advancedSettings);
-                    const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}_processing`;
-                    return [cacheKey0];
-                  }
-
-                  async function checkCacheForImage(img, blob) {
-                    const cacheKeys = await generateCacheKeys(img, blob);
-
-                    for (const cacheKey of cacheKeys) {
-                      const result = await new Promise((resolve) => {
-                        chrome.storage.local.get(cacheKey, (data) => {
-                          resolve(data);
-                        });
-                      });
-                      if (result[cacheKey]) {
-                        return { found: true, key: cacheKey, value: result[cacheKey] };
-                      }
-                    }
-                    return { found: false, key: cacheKeys[0], value: null };
-                  }
-
-                  async function checkProcessingCacheForImage(img) {
-                    const cacheKeys = await generateProcessingCacheKey(img);
-
-                    for (const cacheKey of cacheKeys) {
-                      const result = await new Promise((resolve) => {
-                        chrome.storage.local.get(cacheKey, (data) => {
-                          resolve(data);
-                        });
-                      });
-                      if (result[cacheKey]) {
-                        return cacheKey;
-                      }
-                    }
-                    return null;
-                  }
-
-                  async function processApiResponse(response, img, imgBlob) {
-                    if (response.ok) {
-                      const reader = response.body.getReader();
-                      const decoder = new TextDecoder('utf-8');
-                      let buffer = new Uint8Array();
-
-                      while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-
-                        const newBuffer = new Uint8Array(buffer.length + value.length);
-                        newBuffer.set(buffer);
-                        newBuffer.set(value, buffer.length);
-                        buffer = newBuffer;
-
-                        while (buffer.length >= 5) {
-                          const dataSize = new DataView(buffer.buffer).getUint32(1, false);
-                          const totalSize = 5 + dataSize;
-                          if (buffer.length < totalSize) break;
-
-                          const statusCode = buffer[0];
-                          const data = buffer.slice(5, totalSize);
-                          const decodedData = decoder.decode(data);
-
-                          if (statusCode === 0) {
-                            const clonedImg = img.cloneNode(true);
-                            const objectUrl = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
-                            updateImageSource(img, objectUrl);
-                            updateImageSourceSet(img, objectUrl);
-                            img.setAttribute('data-translated', 'true'); // Mark image as translated
-
-                            // Convert blob to base64 and store it
-                            const base64Data = await convertBlobToBase64(new Blob([data], { type: 'application/octet-stream' }));
-                            const cacheKeys = await generateCacheKeys(clonedImg, imgBlob);
-
-                            for (const cacheKey of cacheKeys) {
-                              chrome.storage.local.set({ [cacheKey]: base64Data });
-                            }
-                          } else if (statusCode >= 1 && statusCode <= 4) {
-                            hideLoadingSpinner();
-                            showLoadingSpinner(img, decodedData);
+                    function updateImageSourceSet(img, newSrc) {
+                      const pictureElement = img.parentElement;
+                      if (pictureElement && pictureElement.tagName === 'PICTURE') {
+                        const sources = pictureElement.getElementsByTagName('source');
+                        const url = new URL(newSrc);
+                        const extension = url.pathname.split('.').pop();
+                        const typeMap = {
+                          'jpg': 'image/jpeg',
+                          'jpeg': 'image/jpeg',
+                          'png': 'image/png',
+                          'webp': 'image/webp',
+                          'gif': 'image/gif',
+                          'svg': 'image/svg+xml',
+                          'avif': 'image/avif',
+                          'jxl': 'image/jxl'
+                        };
+                        const newType = typeMap[extension];
+                        for (const source of sources) {
+                          source.srcset = newSrc;
+                          if (newType) {
+                            source.type = newType;
                           }
-                          buffer = buffer.slice(totalSize);
                         }
                       }
-                    } else {
-                      console.error(response.statusText);
                     }
-                  }
 
-                  function showLoadingSpinner(img, txt) {
-                    const rect = img.getBoundingClientRect();
-                    const loadingDiv = document.createElement('div');
-                    Object.assign(loadingDiv.style, {
-                      position: 'absolute',
-                      top: `${rect.top + window.scrollY}px`,
-                      left: `${rect.left + window.scrollX}px`,
-                      width: `${rect.width}px`,
-                      height: `${rect.height}px`,
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: 10000,
-                      pointerEvents: 'none' // Ensure the spinner does not block interactions with the image
-                    });
-                  
-                    const loadingTextDiv = loadingDiv.cloneNode(true);
-                  
-                    loadingDiv.className = 'spinner-manga';
-                    loadingTextDiv.className = 'spinner-text-manga';
-                    loadingDiv.innerHTML = `
-                      <div style="
-                        border: 16px solid #f3f3f3;
-                        border-top: 16px solid #3498db;
-                        border-radius: 50%;
-                        width: 120px;
-                        height: 120px;
-                        animation: spin 4s linear infinite;
-                      "></div>
-                    `;
-                  
-                    loadingTextDiv.innerHTML = `
-                      <div style="
-                        color: white;
-                        text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-                      ">
-                        <p>${txt}</p>
-                      </div>
-                    `;
-                  
-                    const style = document.createElement('style');
-                    style.innerHTML = `
-                      @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
+                    async function fetchImageBlob(img) {
+                      if (!img.src || ! img.src.startsWith('http')) {
+                        throw new Error('Cannot fetch http* URL or img.src is undefined.');
                       }
-                    `;
-                  
-                    document.body.appendChild(loadingDiv);
-                    document.body.appendChild(loadingTextDiv);
-                    document.head.appendChild(style);
-                  
-                    return loadingDiv;
-                  }
-                  
 
-                  function hideLoadingSpinner() {
-                    const loadingDiv = document.querySelector('.spinner-manga');
-                    if (loadingDiv) {
-                      loadingDiv.remove();
+                      const newImg = new Image();
+                      newImg.crossOrigin = "Anonymous";
+                      newImg.src = img.src;
+
+                      await new Promise((resolve, reject) => {
+                        newImg.onload = resolve;
+                        newImg.onerror = reject;
+                      });
+
+                      const canvas = document.createElement('canvas');
+                      canvas.width = newImg.naturalWidth;
+                      canvas.height = newImg.naturalHeight;
+
+                      const ctx = canvas.getContext('2d');
+                      ctx.drawImage(newImg, 0, 0, canvas.width, canvas.height);
+
+                      return new Promise((resolve, reject) => {
+                        canvas.toBlob(blob => {
+                          if (blob) {
+                            resolve(blob);
+                          } else {
+                            reject(new Error('Canvas to Blob conversion failed'));
+                          }
+                        }, 'image/jpeg', 1.0);
+                      });
                     }
 
-                    const loadingTextDiv = document.querySelector('.spinner-text-manga');
-                    if (loadingTextDiv) {
-                      loadingTextDiv.remove();
+                    async function fetchImageWithRetry(url) {
+                      if (url.startsWith('chrome://')) {
+                        return Promise.reject(new Error('Cannot fetch chrome:// URL'));
+                      }
+
+                      const fetchWithRetry = async (urlToFetch) => {
+                        const response = await fetch(urlToFetch);
+                        const blob = await response.blob();
+                        if (!response.ok) {
+                          throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return blob;
+                      };
+
+                      try {
+                        return await fetchWithRetry(url);
+                      } catch {
+                        for (const proxyUrl of proxyUrls) {
+                          try {
+                            return await fetchWithRetry(proxyUrl + url);
+                          } catch {
+                            // Continue to the next proxy URL
+                          }
+                        }
+                        return Promise.reject(new Error('All fetch attempts failed'));
+                      }
                     }
-                  }
 
-                  async function submitImage(img, blob) {
-                    try {
-                      const res = await submitImageToApi(`${quickSettings.apiUrl}/translate/with-form/image/stream`, img, blob);
-                      return res;
-                    } catch (error) {
-                      hideLoadingSpinner();
-                      return;
+                    async function captureImage(img, screenshotUrl) {
+                      const rect = img.getBoundingClientRect();
+                      const devicePixelRatio = window.devicePixelRatio || 1;
+                    
+                      const image = new Image();
+                      image.src = screenshotUrl;
+                      await new Promise((resolve) => (image.onload = resolve));
+                    
+                      console.log('Pixel ratio:', devicePixelRatio);
+                      const canvas = document.createElement('canvas');
+                      canvas.width = image.width;
+                      canvas.height = image.height;
+                      const ctx = canvas.getContext('2d');
+                      ctx.scale(devicePixelRatio, devicePixelRatio);
+                      ctx.drawImage(image, 0, 0, image.width / devicePixelRatio, image.height / devicePixelRatio);
+                    
+                      const croppedCanvas = document.createElement('canvas');
+                      croppedCanvas.width = rect.width * devicePixelRatio;
+                      croppedCanvas.height = rect.height * devicePixelRatio;
+                      const croppedCtx = croppedCanvas.getContext('2d');
+                      croppedCtx.drawImage(
+                        canvas,
+                        rect.left * devicePixelRatio,
+                        rect.top * devicePixelRatio,
+                        rect.width * devicePixelRatio,
+                        rect.height * devicePixelRatio,
+                        0,
+                        0,
+                        rect.width * devicePixelRatio,
+                        rect.height * devicePixelRatio
+                      );
+                    
+                      return new Promise((resolve) => {
+                        croppedCanvas.toBlob(resolve, 'image/jpeg', 1.0);
+                      });
                     }
-                  }
 
-                  function convertBlobToBase64(blob) {
-                    return new Promise((resolve, reject) => {
-                      const reader = new FileReader();
-                      reader.onloadend = () => resolve(reader.result);
-                      reader.onerror = reject;
-                      reader.readAsDataURL(blob);
-                    });
-                  }
+                    async function getImageBlob(img) {
+                      if (advancedSettings.capture) {
+                        return await captureImage(img, screenshotUrl);
+                      }
+                      try {
+                        return await fetchImageBlob(img);
+                      } catch (error) {
+                        return await fetchImageWithRetry(img.src);
+                      }
+                    }
 
-                  async function processImage(img) {
-                    const rect = img.getBoundingClientRect();  // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
+                    function generateConfig(quickSettings, advancedSettings, img) {
+                      return {
+                        detector: {
+                          detector: advancedSettings.detector.detector,
+                          detection_size: advancedSettings.detector.detection_size,
+                          text_threshold: advancedSettings.detector.text_threshold,
+                          det_rotate: advancedSettings.det_rotate,
+                          det_auto_rotate: advancedSettings.det_auto_rotate,
+                          det_invert: advancedSettings.det_invert,
+                          det_gamma_correct: advancedSettings.det_gamma_correct,
+                          box_threshold: advancedSettings.detector.box_threshold,
+                          unclip_ratio: advancedSettings.detector.unclip_ratio
+                        },
+                        colorizer: {
+                          colorizer: quickSettings.colorize ? 'mc2' : 'none',
+                          colorization_size: img.naturalHeight || 576,
+                          denoise_sigma: 30
+                        },
+                        inpainter: {
+                          inpainter: advancedSettings.inpainter.inpainter,
+                          inpainting_size: advancedSettings.inpainter.inpainting_size,
+                          inpainting_precision: advancedSettings.inpainter.inpainting_precision
+                        },
+                        ocr: {
+                          use_mocr_merge: advancedSettings.ocr.use_mocr_merge,
+                          ocr: advancedSettings.ocr.ocr,
+                          min_text_length: advancedSettings.ocr.min_text_length,
+                          ignore_bubble: advancedSettings.ocr.ignore_bubble
+                        },
+                        render: {
+                          renderer: advancedSettings.render.renderer,
+                          alignment: advancedSettings.render.alignment,
+                          disable_font_border: advancedSettings.render.disable_font_border,
+                          font_size_offset: advancedSettings.render.font_size_offset,
+                          font_size_minimum: advancedSettings.render.font_size_minimum,
+                          direction: advancedSettings.render.direction,
+                          uppercase: advancedSettings.render.uppercase,
+                          lowercase: advancedSettings.render.lowercase,
+                          gimp_font: advancedSettings.render.gimp_font,
+                          no_hyphenation: advancedSettings.render.no_hyphenation,
+                          font_color: advancedSettings.render.font_color || null,
+                          line_spacing: advancedSettings.render.line_spacing || null,
+                          font_size: advancedSettings.render.font_size || null
+                        },
+                        translator: {
+                          translator: advancedSettings.translator.translator,
+                          target_lang: quickSettings.target_language,
+                          no_text_lang_skip: advancedSettings.translator.no_text_lang_skip,
+                          skip_lang: null,
+                          gpt_config: null,
+                          translator_chain: null,
+                          selective_translation: null
+                        },
+                        upscale: {
+                          upscaler: advancedSettings.upscale.upscaler,
+                          revert_upscaling: advancedSettings.upscale.revert_upscaling,
+                          upscale_ratio: advancedSettings.upscale.upscale_ratio
+                        },
+                        kernel_size: advancedSettings.kernel_size,
+                        mask_dilation_offset: advancedSettings.mask_dilation_offset
+                      };
+                    }
 
-                    if (getPixelCount(img) > 700000 && rect.width > 0 && rect.height > 0 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
+                    async function submitImageToApi(apiUrl, img, imageBlob) {
+                      if (!imageBlob) {
+                        return { taskId: "0", status: "error" };
+                      }
+                      const config = generateConfig(quickSettings, advancedSettings, img);
 
-                      // Store the original src in a data attribute
-                      img.dataset.originalSrc = img.src;
-                      const imgBlob = await getImageBlob(img);
-                      const cache = advancedSettings.disable_cache ? { found: false } : await checkCacheForImage(img, imgBlob);
-                      const cacheKey = cache.key;
-                      const cache_processing = advancedSettings.disable_cache ? null : await checkProcessingCacheForImage(img);
-                      if (cache.found) {
-                        // Convert base64 to blob URL and use it
-                        showLoadingSpinner(img, 'Getting from cache');
-                        const base64Data = cache.value;
-                        const blob = await (await fetch(base64Data)).blob();
-                        const objectUrl = URL.createObjectURL(blob);
-                        updateImageSource(img, objectUrl);
-                        updateImageSourceSet(img, objectUrl);
-                        img.setAttribute('data-translated', 'true');
-                        hideLoadingSpinner();
-                      } else if (cache_processing) {
-                        // Wait until the image is processed
-                        hideLoadingSpinner();
-                        showLoadingSpinner(img, 'Already processing<br> waiting for result.');
-                        const interval = setInterval(async () => {
-                          chrome.storage.local.get(cacheKey, async function (result) {
-                            if (result[cacheKey]) {
-                              clearInterval(interval);
-                              const base64Data = result[cacheKey];
-                              const blob = await (await fetch(base64Data)).blob();
-                              const objectUrl = URL.createObjectURL(blob);
+                      const formData = new FormData();
+                      formData.append('image', imageBlob);
+                      formData.append('config', JSON.stringify(config));
+
+                      const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        body: formData
+                      });
+                      return response;
+                    }
+
+                    async function calculateBlobHash(blob) {
+                      const arrayBuffer = await blob.arrayBuffer();
+                      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                      return Array.from(new Uint8Array(hashBuffer))
+                        .map(byte => byte.toString(16).padStart(2, '0'))
+                        .join('');
+                    }
+
+                    async function computeSettingsFingerprint(quickSettings, advancedSettings) {
+                      const quickSettingsString = JSON.stringify(quickSettings);
+                      const advancedSettingsString = JSON.stringify(advancedSettings);
+                      const encoder = new TextEncoder();
+                      const data = encoder.encode(quickSettingsString+advancedSettingsString);
+                      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                      return Array.from(new Uint8Array(hashBuffer))
+                        .map(byte => byte.toString(16).padStart(2, '0'))
+                        .join('');
+                    }
+
+                    async function generateCacheKeys(img, blob) {
+                      const urlObj = new URL(img.dataset.originalSrc);
+                      const domain = urlObj.hostname.split('.').slice(-2).join('.');
+
+                      const settingsHash = await computeSettingsFingerprint(quickSettings, advancedSettings);
+                      const hash = await calculateBlobHash(blob);
+                      const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}`;
+                      const cacheKey1 = `${hash}_${settingsHash}`;
+
+                      return [cacheKey0, cacheKey1];
+                    }
+
+                    async function generateProcessingCacheKey(img) {
+                      const urlObj = new URL(img.dataset.originalSrc);
+                      const domain = urlObj.hostname.split('.').slice(-2).join('.');
+
+                      const settingsHash = await computeSettingsFingerprint(quickSettings, advancedSettings);
+                      const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}_processing`;
+                      return [cacheKey0];
+                    }
+
+                    async function checkCacheForImage(img, blob) {
+                      const cacheKeys = await generateCacheKeys(img, blob);
+
+                      for (const cacheKey of cacheKeys) {
+                        const result = await new Promise((resolve) => {
+                          chrome.storage.local.get(cacheKey, (data) => {
+                            resolve(data);
+                          });
+                        });
+                        if (result[cacheKey]) {
+                          return { found: true, key: cacheKey, value: result[cacheKey] };
+                        }
+                      }
+                      return { found: false, key: cacheKeys[0], value: null };
+                    }
+
+                    async function checkProcessingCacheForImage(img) {
+                      const cacheKeys = await generateProcessingCacheKey(img);
+
+                      for (const cacheKey of cacheKeys) {
+                        const result = await new Promise((resolve) => {
+                          chrome.storage.local.get(cacheKey, (data) => {
+                            resolve(data);
+                          });
+                        });
+                        if (result[cacheKey]) {
+                          return cacheKey;
+                        }
+                      }
+                      return null;
+                    }
+
+                    async function processApiResponse(response, img, imgBlob) {
+                      if (response.ok) {
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder('utf-8');
+                        let buffer = new Uint8Array();
+
+                        while (true) {
+                          const { done, value } = await reader.read();
+                          if (done) break;
+
+                          const newBuffer = new Uint8Array(buffer.length + value.length);
+                          newBuffer.set(buffer);
+                          newBuffer.set(value, buffer.length);
+                          buffer = newBuffer;
+
+                          while (buffer.length >= 5) {
+                            const dataSize = new DataView(buffer.buffer).getUint32(1, false);
+                            const totalSize = 5 + dataSize;
+                            if (buffer.length < totalSize) break;
+
+                            const statusCode = buffer[0];
+                            const data = buffer.slice(5, totalSize);
+                            const decodedData = decoder.decode(data);
+
+                            if (statusCode === 0) {
+                              const clonedImg = img.cloneNode(true);
+                              const objectUrl = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
                               updateImageSource(img, objectUrl);
                               updateImageSourceSet(img, objectUrl);
-                              img.setAttribute('data-translated', 'true');
+                              img.setAttribute('data-translated', 'true'); // Mark image as translated
+
+                              // Convert blob to base64 and store it
+                              const base64Data = await convertBlobToBase64(new Blob([data], { type: 'application/octet-stream' }));
+                              const cacheKeys = await generateCacheKeys(clonedImg, imgBlob);
+
+                              for (const cacheKey of cacheKeys) {
+                                chrome.storage.local.set({ [cacheKey]: base64Data });
+                              }
+                            } else if (statusCode >= 1 && statusCode <= 4) {
                               hideLoadingSpinner();
+                              showLoadingSpinner(img, decodedData);
                             }
-                          });
-                        }, 1000); // Check every second
-                      } else {
-                        // Mark the image as being processed
-                        img.setAttribute('data-processing', 'true');
-                        const processingKey = await generateProcessingCacheKey(img);
-                        if (!advancedSettings.disable_cache) {
-                          chrome.storage.local.set({ [processingKey]: true });
+                            buffer = buffer.slice(totalSize);
+                          }
                         }
+                      } else {
+                        console.error(response.statusText);
+                      }
+                    }
+
+                    function showLoadingSpinner(img, txt) {
+                      const rect = img.getBoundingClientRect();
+                      const loadingDiv = document.createElement('div');
+                      Object.assign(loadingDiv.style, {
+                        position: 'absolute',
+                        top: `${rect.top + window.scrollY}px`,
+                        left: `${rect.left + window.scrollX}px`,
+                        width: `${rect.width}px`,
+                        height: `${rect.height}px`,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 10000,
+                        pointerEvents: 'none' // Ensure the spinner does not block interactions with the image
+                      });
+                    
+                      const loadingTextDiv = loadingDiv.cloneNode(true);
+                    
+                      loadingDiv.className = 'spinner-manga';
+                      loadingTextDiv.className = 'spinner-text-manga';
+                      loadingDiv.innerHTML = `
+                        <div style="
+                          border: 16px solid #f3f3f3;
+                          border-top: 16px solid #3498db;
+                          border-radius: 50%;
+                          width: 120px;
+                          height: 120px;
+                          animation: spin 4s linear infinite;
+                        "></div>
+                      `;
+                    
+                      loadingTextDiv.innerHTML = `
+                        <div style="
+                          color: white;
+                          text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+                        ">
+                          <p>${txt}</p>
+                        </div>
+                      `;
+                    
+                      const style = document.createElement('style');
+                      style.innerHTML = `
+                        @keyframes spin {
+                          0% { transform: rotate(0deg); }
+                          100% { transform: rotate(360deg); }
+                        }
+                      `;
+                    
+                      document.body.appendChild(loadingDiv);
+                      document.body.appendChild(loadingTextDiv);
+                      document.head.appendChild(style);
+                    
+                      return loadingDiv;
+                    }
+                    
+
+                    function hideLoadingSpinner() {
+                      const loadingDiv = document.querySelector('.spinner-manga');
+                      if (loadingDiv) {
+                        loadingDiv.remove();
+                      }
+
+                      const loadingTextDiv = document.querySelector('.spinner-text-manga');
+                      if (loadingTextDiv) {
+                        loadingTextDiv.remove();
+                      }
+                    }
+
+                    async function submitImage(img, blob) {
+                      try {
+                        const res = await submitImageToApi(`${quickSettings.apiUrl}/translate/with-form/image/stream`, img, blob);
+                        return res;
+                      } catch (error) {
                         hideLoadingSpinner();
-                        showLoadingSpinner(img, 'Processing');
-                        try {
-                          await new Promise(resolve => setTimeout(resolve, 100)); // Wait for 100 ms before processing
-                          const response = await submitImage(img, imgBlob);
-                          await processApiResponse(response, img, imgBlob);
-                        } catch (error) {
-                          console.error('Error:', error);
-                        } finally {
+                        return;
+                      }
+                    }
+
+                    function convertBlobToBase64(blob) {
+                      return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                      });
+                    }
+
+                    async function processImage(img) {
+                      const rect = img.getBoundingClientRect();  // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
+
+                      if (getPixelCount(img) > 700000 && rect.width > 0 && rect.height > 0 && !img.src.startsWith('chrome://') && !img.hasAttribute('data-translated') && !img.hasAttribute('data-processing')) {
+
+                        // Store the original src in a data attribute
+                        img.dataset.originalSrc = img.src;
+                        const imgBlob = await getImageBlob(img);
+                        const cache = advancedSettings.disable_cache ? { found: false } : await checkCacheForImage(img, imgBlob);
+                        const cacheKey = cache.key;
+                        const cache_processing = advancedSettings.disable_cache ? null : await checkProcessingCacheForImage(img);
+                        if (cache.found) {
+                          // Convert base64 to blob URL and use it
+                          showLoadingSpinner(img, 'Getting from cache');
+                          const base64Data = cache.value;
+                          const blob = await (await fetch(base64Data)).blob();
+                          const objectUrl = URL.createObjectURL(blob);
+                          updateImageSource(img, objectUrl);
+                          updateImageSourceSet(img, objectUrl);
+                          img.setAttribute('data-translated', 'true');
                           hideLoadingSpinner();
-                          // Remove the processing attribute
-                          img.removeAttribute('data-processing');
+                        } else if (cache_processing) {
+                          // Wait until the image is processed
+                          hideLoadingSpinner();
+                          showLoadingSpinner(img, 'Already processing<br> waiting for result.');
+                          const interval = setInterval(async () => {
+                            chrome.storage.local.get(cacheKey, async function (result) {
+                              if (result[cacheKey]) {
+                                clearInterval(interval);
+                                const base64Data = result[cacheKey];
+                                const blob = await (await fetch(base64Data)).blob();
+                                const objectUrl = URL.createObjectURL(blob);
+                                updateImageSource(img, objectUrl);
+                                updateImageSourceSet(img, objectUrl);
+                                img.setAttribute('data-translated', 'true');
+                                hideLoadingSpinner();
+                              }
+                            });
+                          }, 1000); // Check every second
+                        } else {
+                          // Mark the image as being processed
+                          img.setAttribute('data-processing', 'true');
+                          const processingKey = await generateProcessingCacheKey(img);
                           if (!advancedSettings.disable_cache) {
-                            chrome.storage.local.remove(processingKey);
+                            chrome.storage.local.set({ [processingKey]: true });
+                          }
+                          hideLoadingSpinner();
+                          showLoadingSpinner(img, 'Processing');
+                          try {
+                            await new Promise(resolve => setTimeout(resolve, 100)); // Wait for 100 ms before processing
+                            const response = await submitImage(img, imgBlob);
+                            await processApiResponse(response, img, imgBlob);
+                          } catch (error) {
+                            console.error('Error:', error);
+                          } finally {
+                            hideLoadingSpinner();
+                            // Remove the processing attribute
+                            img.removeAttribute('data-processing');
+                            if (!advancedSettings.disable_cache) {
+                              chrome.storage.local.remove(processingKey);
+                            }
                           }
                         }
                       }
                     }
-                  }
 
-                  const images = document.getElementsByTagName('img');
+                    const images = document.getElementsByTagName('img');
 
-                  const uniqueUrls = new Set();
-                  const images_uniq = [];
+                    const uniqueUrls = new Set();
+                    const images_uniq = [];
 
-                  for (const img of images) {
-                    const imgUrl = img.src;
+                    for (const img of images) {
+                      const imgUrl = img.src;
 
-                    // Add the image to images_uniq if the URL is not already in the set
-                    if (!uniqueUrls.has(imgUrl)) {
-                      uniqueUrls.add(imgUrl);
-                      images_uniq.push(img);
+                      // Add the image to images_uniq if the URL is not already in the set
+                      if (!uniqueUrls.has(imgUrl)) {
+                        uniqueUrls.add(imgUrl);
+                        images_uniq.push(img);
+                      }
                     }
-                  }
 
-                  for (const img of images_uniq) {
-                    await processImage(img);
-                  }
+                    for (const img of images_uniq) {
+                      await processImage(img);
+                    }
+                  }, startwait);
                 }
               });
             });
