@@ -236,7 +236,6 @@
       updateIcon(tabId);
       const urlObj = new URL(tab.url);
       const domain = urlObj.hostname;
-      console.log(`Tab updated: ${domain}`);
 
       if (quickSettings.enabledWebsites[domain]) {
         let startwait = 500;
@@ -839,8 +838,6 @@
             }
           });
         }, startwait);
-      } else {
-        console.log(`Tab disabled: ${domain}`);
       }
     }
   });
