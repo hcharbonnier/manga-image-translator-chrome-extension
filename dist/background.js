@@ -126,15 +126,14 @@
               }            
   
               async function wait_for_all_images_to_be_loaded(images) {
-                console.log('wait_for_all_images_to_be_loaded called');
                 for (const img of images) {
                   console.log(`Waiting for image: ${img.src}`);
                   // Wait for the image to be fully loaded and stable
                   await new Promise((resolve, reject) => {
                     if (img.complete) {
-                      if (isImageOnScreen(img)) {
-                        // while (!isImageOnScreen(img)) {}
-                      }
+                      // if (isImageOnScreen(img)) {
+                      //   // while (!isImageOnScreen(img)) {}
+                      // }
                       checkImageSize(0);
                     } else {
                       img.onload = function() {
@@ -148,18 +147,17 @@
                     }
   
                     function checkImageSize(i) {
-                      if (i > 10) {
+                      if (i > 6) {
                         console.log(`Failed to check image size: ${img.src}`);
                         resolve();
                         return;
                       }
-                      console.log(`Checking image size(${i}): ${img.src}`);
                       let previousWidth = img.naturalWidth;
                       let previousHeight = img.naturalHeight;
                       if (previousWidth === 0 && previousHeight === 0) {
                         setTimeout(() => {
                           checkImageSize(i+1);
-                        }, 100);
+                        }, 50);
                       } else {                        
                         const interval = setInterval(() => {
                           if (img.naturalWidth === previousWidth && img.naturalHeight === previousHeight ) {
@@ -169,7 +167,7 @@
                             previousWidth = img.naturalWidth;
                             previousHeight = img.naturalHeight;
                           }
-                        }, 100);
+                        }, 50);
                       }
                     }
   
@@ -218,13 +216,27 @@
                 }
               }
 
+              function waitForImagesToStabilize(callback) {
+                let previousCount = 0;
+                const interval = setInterval(() => {
+                  const images = document.getElementsByTagName('img');
+                  if (images.length === previousCount) {
+                    clearInterval(interval);
+                    callback(images);
+                  } else {
+                    previousCount = images.length;
+                  }
+                }, 100);
+              }
+
         // Listen for messages from the background script
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (message.action === "waitForImages") {
-            const images = document.getElementsByTagName('img');
-            wait_for_all_images_to_be_loaded(images).then(() => {
-              console.log('All images loaded');
-              sendResponse({ allImagesLoaded: true });
+            waitForImagesToStabilize((images) => {
+              wait_for_all_images_to_be_loaded(images).then(() => {
+                console.log('All images loaded');
+                sendResponse({ allImagesLoaded: true });
+              });
             });
             return true; // Keep the message channel open for asynchronous response
           }
@@ -238,26 +250,27 @@
       const domain = urlObj.hostname;
 
       if (quickSettings.enabledWebsites[domain]) {
-        let startwait = 500;
+        let startwait = 0;
           switch (domain) {
             case 'hitomi.la':
-              startwait = 100;
+              startwait = 0;
+              break;
+            case 'multporn.net':
+              startwait = 1000;
               break;
             case 'nhentai.net':
-              startwait = 100;
+              startwait = 0;
               break;
             case 'hentaifox.com':
-              startwait = 500;
+              startwait = 0;
               break;
             case 'klmanga.com':
-              startwait = 100;
+              startwait = 0;
               break;
             case 'klz9.com':
-              startwait = 100;
+              startwait = 0;
               break;
           }
-
-        console.log(`Tab enabled: ${domain}`);
 
         setTimeout(async function () {
           chrome.tabs.sendMessage(tab.id, { action: "waitForImages" }, async (response) => {
@@ -777,7 +790,7 @@
                                   hideLoadingSpinner();
                                 }
                               });
-                            }, 1000); // Check every second
+                            }, 500); // Check every second
                           } else {
                             // Mark the image as being processed
                             img.setAttribute('data-processing', 'true');
@@ -788,7 +801,7 @@
                             hideLoadingSpinner();
                             showLoadingSpinner(img, 'Processing');
                             try {
-                              await new Promise(resolve => setTimeout(resolve, 100)); // Wait for 100 ms before processing
+                              //await new Promise(resolve => setTimeout(resolve, 100)); // Wait for 100 ms before processing
                               const response = await submitImage(img, imgBlob);
                               await processApiResponse(response, img, imgBlob);
                             } catch (error) {
