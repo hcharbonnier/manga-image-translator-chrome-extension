@@ -40,8 +40,8 @@ function restoreOptions() {
     document.getElementById('ocr_ignore_bubble').value = advancedSettings.ocr.ignore_bubble;
     document.getElementById('kernel_size').value = advancedSettings.kernel_size;
     document.getElementById('mask_dilation_offset').value = advancedSettings.mask_dilation_offset;
-    document.getElementById('capture').checked = advancedSettings.capture || false;
-    document.getElementById('disable_cache').checked = advancedSettings.disable_cache || false; // New setting
+    document.getElementById('capture').checked = advancedSettings.capture;
+    document.getElementById('disable_cache').checked = advancedSettings.disable_cache;
   });
 }
 
@@ -166,7 +166,7 @@ function resetOptions() {
     },
     kernel_size: 3,
     mask_dilation_offset: 0,
-    capture: true,
+    capture: false,
     disable_cache: false,
   };
 
