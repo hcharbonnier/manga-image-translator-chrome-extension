@@ -334,10 +334,14 @@
     }
 
     function generateConfig(quickSettings, advancedSettings, image) {
-        return {
+        const width = image.naturalWidth;
+        const height = image.naturalHeight;
+        const detection_size_raw = Math.max(height, width);
+        const detection_size = Math.round(detection_size_raw/2)*2;
+            return {
             detector: {
                 detector: advancedSettings.detector.detector,
-                detection_size: advancedSettings.detector.detection_size,
+                detection_size: Math.min(advancedSettings.detector.detection_size,detection_size),
                 text_threshold: advancedSettings.detector.text_threshold,
                 det_rotate: advancedSettings.det_rotate,
                 det_auto_rotate: advancedSettings.det_auto_rotate,
@@ -400,7 +404,7 @@
     function shouldTranslateImage(image) {
         //showLoadingSpinner(image, 'Analyzing image');
 
-        const min_pixel_count = 700000;
+        const min_pixel_count = 1000;
         const width = image.naturalWidth;
         const height = image.naturalHeight;
         const nb_pixels = (width * height); // Check if image size is greater than 500,000 pixels
@@ -779,7 +783,7 @@
     async function waitForAllImagesToLoad() {
         console.log('waitForAllImagesToLoad() called');
         const images = Array.from(document.images);
-        const timeoutPromise = new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds timeout
+        const timeoutPromise = new Promise(resolve => setTimeout(resolve, 20000)); // 10 seconds timeout
 
         await Promise.race([
             Promise.all(images.map(img => {
