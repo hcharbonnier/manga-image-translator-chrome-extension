@@ -197,9 +197,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse(data);
         });
         return true; // Keep the message channel open for sendResponse
-    // } else if (message.type === 'allImagesLoaded') {
-    //     console.log('All images are loaded, setting allImagesLoaded to true');
-    //     allImagesLoaded = true;
     } else if (message.type === 'getScreenshot') {
         console.log('Taking screenshot');
         chrome.tabs.captureVisibleTab(null, {}, (dataUrl) => {

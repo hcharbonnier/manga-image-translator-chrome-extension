@@ -33,17 +33,12 @@
     }
 
     async function translateImage(image, screenshotUrl=null) {
+        showLoadingSpinner(image, 'Looking for image in cache');
         // Placeholder for image translation logic
         const rect = image.getBoundingClientRect();  // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
         // Store the original src in a data attribute
         image.dataset.originalSrc = image.src;
         let imgBlob;
-        try {
-            imgBlob = await getImageBlob(image, screenshotUrl);
-        } catch (error) {
-            console.error('Error getting image blob:', error);
-            return;
-        }
 
         let cache = advancedSettings.disable_cache ? { found: false } : await checkCacheForImage(image.src);
         let cacheKey
@@ -60,9 +55,13 @@
             cacheKey = cache.key;
             cache_processing = advancedSettings.disable_cache ? null : await checkProcessingCacheForImage(image);
         }
+        hideLoadingSpinner(image);
         
         if (cache.found) {
+            
+            console.log(cache);
             console.log('Found in cache');
+
             // Convert base64 to blob URL and use it
             showLoadingSpinner(image, 'Getting from cache');
             const base64Data = cache.value;
@@ -80,21 +79,19 @@
             hideLoadingSpinner(image);
             showLoadingSpinner(image, 'Already processing<br> waiting for result.');
             const interval = setInterval(async () => {
-                chrome.storage.local.get(cacheKey, async function (result) {
-                    if (result[cacheKey]) {
-                        clearInterval(interval);
-                        const base64Data = result[cacheKey];
-                        const blob = await (await fetch(base64Data)).blob();
-                        const objectUrl = URL.createObjectURL(blob);
-                        image.setAttribute('data-translated', 'true'); // Mark image as translated
-                        image.setAttribute('data-URLsource', image.src); // Mark image as translated
-                        image.setAttribute('data-URLtranslated', objectUrl); // Mark image as translated
-                        updateImageSource(image, objectUrl);
-                        updateImageSourceSet(image, objectUrl);
+                cache = await checkCacheForImage(imgBlob);
+                if (cache.found) { // Change 'result.found' to 'cache.found'
+                    clearInterval(interval);
+                    const blob = await (await fetch(cache.value)).blob(); // Fetch the blob from the cache value
+                    const objectUrl = URL.createObjectURL(blob);
+                    image.setAttribute('data-translated', 'true'); // Mark image as translated
+                    image.setAttribute('data-URLsource', image.src); // Mark image as translated
+                    image.setAttribute('data-URLtranslated', objectUrl); // Mark image as translated
+                    updateImageSource(image, objectUrl);
+                    updateImageSourceSet(image, objectUrl);
 
-                        hideLoadingSpinner(image);
-                    }
-                });
+                    hideLoadingSpinner(image);
+                }
             }, 500); // Check every second
         } else {
             console.log('Not found in cache');
@@ -401,12 +398,25 @@
 
     // Function to check if an image should be translated
     function shouldTranslateImage(image) {
-        const min_pixel_count = 700000;
+        //showLoadingSpinner(image, 'Analyzing image');
+
+        const min_pixel_count = 10000;
         const width = image.naturalWidth;
         const height = image.naturalHeight;
         const nb_pixels = (width * height); // Check if image size is greater than 500,000 pixels
 
         res=true
+
+        // Check if the image or its parent has display: none
+        let element = image;
+        while (element) {
+            if (getComputedStyle(element).display === 'none') {
+                console.log('Image or its parent has display: none, don\'t translate');
+                res=false;
+                break;
+            }
+            element = element.parentElement;
+        }
 
         console.log('shouldTranslateImage?: ', image.src);
         if (nb_pixels < min_pixel_count && nb_pixels > 0) {
@@ -426,6 +436,7 @@
             res=false
         }
 
+        //hideLoadingSpinner(image);
         return res;
     }
 
@@ -443,7 +454,7 @@
                     translateImage(image, screenshotUrl);
                 }
             } else {
-                console.log('Image does not meet the criteria for translation');
+                console.log('Image does not meet the criteria for translation:'+ image.src);
             }
         });
         await Promise.all(promises);
@@ -469,96 +480,123 @@
 
         const settingsHash = await computeSettingsFingerprint(quickSettings, advancedSettings);
         const cacheKey0 = `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}_processing`;
-        return [cacheKey0];
+        return cacheKey0; // Return a single string instead of an array
     }
 
     async function checkCacheForImage(input) {
-        const cacheKey = await generateCacheKeys(input);
-        const result = await new Promise((resolve) => {
-            try {
-                chrome.storage.local.get(cacheKey, (data) => {
-                    resolve(data);
-                });
-            } catch (error) {
-                console.error('Error getting cache:', error);
+        let cacheKey;
+        try {
+            cacheKey = await generateCacheKeys(input);
+            const result = await retrieveBlobFromCache(cacheKey);
+            if (result) {
+                const objectUrl = URL.createObjectURL(result);
+                return { found: true, key: cacheKey, value: objectUrl };
             }
-        });
-        if (result[cacheKey]) {
-            return { found: true, key: cacheKey, value: result[cacheKey] };
+            return { found: false, key: cacheKey, value: null };
+        } catch (error) {
+            console.error('Error checking cache for image:', error);
+            return { found: false, key: cacheKey, value: null }; // Ensure cacheKey is defined
         }
-        return { found: false, key: cacheKey, value: null };
     }
+    
+    async function storeBlobInCache(blob, cacheKey) {
+        try {
+            const cache = await caches.open('my-cache-manga-translate');
+            const response = new Response(blob);
+            await cache.put(cacheKey, response);
+            console.log(`Blob stored in cache with key: ${cacheKey}`);
+        } catch (error) {
+            console.error('Error storing blob in cache:', error);
+        }
+    }
+    
+    async function retrieveBlobFromCache(cacheKey) {
+        try {
+            const cache = await caches.open('my-cache-manga-translate');
+            const response = await cache.match(cacheKey);
+            if (response) {
+                const blob = await response.blob();
+                console.log(`Blob retrieved from cache with key: ${cacheKey}`);
+                return blob;
+            } else {
+                console.log(`No cache entry found for key: ${cacheKey}`);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error retrieving blob from cache:', error);
+            return null;
+        }
+    }
+    
 
     async function checkProcessingCacheForImage(image) {
-        const cacheKeys = await generateProcessingCacheKey(image);
-
-        for (const cacheKey of cacheKeys) {
-            const result = await new Promise((resolve) => {
-                chrome.storage.local.get(cacheKey, (data) => {
-                    resolve(data);
-                });
+        const cacheKey = await generateProcessingCacheKey(image);
+        const result = await new Promise((resolve) => {
+            chrome.storage.local.get(cacheKey, (data) => {
+                resolve(data);
             });
-            if (result[cacheKey]) {
-                return cacheKey;
-            }
-        }
-        return null;
+        });
+        return result[cacheKey] ? cacheKey : null;
     }
 
     async function processApiResponse(response, img, imgBlob) {
         if (response.ok) {
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let buffer = new Uint8Array();
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = new Uint8Array();
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            const newBuffer = new Uint8Array(buffer.length + value.length);
-            newBuffer.set(buffer);
-            newBuffer.set(value, buffer.length);
-            buffer = newBuffer;
+                const newBuffer = new Uint8Array(buffer.length + value.length);
+                newBuffer.set(buffer);
+                newBuffer.set(value, buffer.length);
+                buffer = newBuffer;
 
-            while (buffer.length >= 5) {
-              const dataSize = new DataView(buffer.buffer).getUint32(1, false);
-              const totalSize = 5 + dataSize;
-              if (buffer.length < totalSize) break;
+                while (buffer.length >= 5) {
+                    const dataSize = new DataView(buffer.buffer).getUint32(1, false);
+                    const totalSize = 5 + dataSize;
+                    if (buffer.length < totalSize) break;
 
-              const statusCode = buffer[0];
-              const data = buffer.slice(5, totalSize);
-              const decodedData = decoder.decode(data);
+                    const statusCode = buffer[0];
+                    const data = buffer.slice(5, totalSize);
+                    const decodedData = decoder.decode(data);
 
-              if (statusCode === 0) {
-                const clonedImg = img.cloneNode(true);
-                const objectUrl = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
-                img.setAttribute('data-translated', 'true'); // Mark image as translated
-                img.setAttribute('data-URLsource', img.src); // Mark image as translated
-                img.setAttribute('data-URLtranslated', objectUrl); // Mark image as translated
-                updateImageSource(img, objectUrl);
-                updateImageSourceSet(img, objectUrl);
+                    if (statusCode === 0) {
+                        const clonedImg = img.cloneNode(true);
+                        const objectUrl = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
+                        img.setAttribute('data-translated', 'true'); // Mark image as translated
+                        img.setAttribute('data-URLsource', img.src); // Mark image as translated
+                        img.setAttribute('data-URLtranslated', objectUrl); // Mark image as translated
+                        updateImageSource(img, objectUrl);
+                        updateImageSourceSet(img, objectUrl);
 
-                // Convert blob to base64 and store it
-                const base64Data = await convertBlobToBase64(new Blob([data], { type: 'application/octet-stream' }));
-                const cacheKeys = [await generateCacheKeys(clonedImg.src) , await generateCacheKeys( imgBlob)]
+                        const cacheKeys = [await generateCacheKeys(clonedImg.src), await generateCacheKeys(imgBlob)];
 
-                for (const cacheKey of cacheKeys) {
-                  chrome.storage.local.set({ [cacheKey]: base64Data });
+                        for (const cacheKey of cacheKeys) {
+                            storeBlobInCache(new Blob([data], { type: 'application/octet-stream' }), cacheKey);
+                        }
+                    } else if (statusCode >= 1 && statusCode <= 4) {
+                        hideLoadingSpinner(img);
+                        showLoadingSpinner(img, decodedData);
+                    }
+                    buffer = buffer.slice(totalSize);
                 }
-              } else if (statusCode >= 1 && statusCode <= 4) {
-                hideLoadingSpinner(img);
-                showLoadingSpinner(img, decodedData);
-              }
-              buffer = buffer.slice(totalSize);
             }
-          }
         } else {
-          console.log(`Error on image ${img.src}:+ ${response.statusText}`);
+            console.log(`Error on image ${img.src}: ${response.statusText}`);
         }
-      }
+    }
 
     function showLoadingSpinner(img, txt) {
         const rect = img.getBoundingClientRect();
+        // Check if the image is within the viewport
+        if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth) {
+            console.log('Image is out of the viewport, not adding spinner');
+            return;
+        }
+
         const loadingDiv = document.createElement('div');
         Object.assign(loadingDiv.style, {
             position: 'absolute',
@@ -659,6 +697,23 @@
     }
 
     async function wait_for_all_images_to_be_loaded(images) {
+        // Add spinner to the top left corner
+        const spinnerDiv = document.createElement('div');
+        Object.assign(spinnerDiv.style, {
+            position: 'fixed',
+            top: '10px',
+            left: '10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            zIndex: 10000,
+            fontSize: '14px',
+            textAlign: 'center'
+        });
+        spinnerDiv.innerText = 'Searching for images to translate...';
+        document.body.appendChild(spinnerDiv);
+
         if (!Array.isArray(images)) {
             images = Array.from(images);
         }
@@ -700,6 +755,9 @@
             });
         });
         await Promise.all(promises);
+
+        // Remove spinner after all images are loaded
+        spinnerDiv.remove();
     }
 
     function waitForDomToStabilize(callback) {
@@ -709,6 +767,7 @@
             if (images.length === previousCount) {
                 clearInterval(interval);
                 console.log('DOM stabilized, calling wait_for_all_images_to_be_loaded');
+                
                 wait_for_all_images_to_be_loaded(images).then(callback);
                 console.log('All images loaded and stable');
             } else {
@@ -720,15 +779,21 @@
     async function waitForAllImagesToLoad() {
         console.log('waitForAllImagesToLoad() called');
         const images = Array.from(document.images);
-        await Promise.all(images.map(img => {
-            if (img.complete) {
-                return checkImageStability(img);
-            }
-            return new Promise(resolve => {
-                img.onload = () => checkImageStability(img).then(resolve);
-                img.onerror = resolve;
-            });
-        }));
+        const timeoutPromise = new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds timeout
+
+        await Promise.race([
+            Promise.all(images.map(img => {
+                if (img.complete) {
+                    return checkImageStability(img);
+                }
+                return new Promise(resolve => {
+                    img.onload = () => checkImageStability(img).then(resolve);
+                    img.onerror = resolve;
+                });
+            })),
+            timeoutPromise
+        ]);
+
         // console.log('All images loaded, sending allImagesLoaded message');
         // chrome.runtime.sendMessage({ type: 'allImagesLoaded' }, () => {
         //     if (chrome.runtime.lastError) {
@@ -778,10 +843,10 @@
                 for (const mutation of mutations) {
                     if (mutation.type === 'childList') {
                         for (const node of mutation.addedNodes) {
-                            if (node.tagName === 'IMG' && shouldTranslateImage(node)) {
+                            if (node.tagName === 'IMG') {
                                 newImages.push(node);
                             } else if (node.querySelectorAll) {
-                                newImages.push(...Array.from(node.querySelectorAll('img')).filter(shouldTranslateImage));
+                                newImages.push(...Array.from(node.querySelectorAll('img')));
                             }
                         }
                     } else if (mutation.type === 'attributes' && mutation.attributeName === 'src' && mutation.target.tagName === 'IMG' && shouldTranslateImage(mutation.target)) {
@@ -817,4 +882,19 @@
     } else {
         console.log('Manga reader not enabled for this website');
     }
+
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'purgeCache') {
+          caches.delete('my-cache-manga-translate').then((success) => {
+            if (success) {
+              console.log('Cache purged successfully');
+            } else {
+              console.log('Cache purge failed');
+              caches.keys().then((keys) => {
+                console.log('Cache keys:', keys);
+              });
+            }
+          });
+        }
+      });
 })();
