@@ -40,7 +40,6 @@ function restoreOptions() {
     document.getElementById('ocr_ignore_bubble').value = advancedSettings.ocr.ignore_bubble;
     document.getElementById('kernel_size').value = advancedSettings.kernel_size;
     document.getElementById('mask_dilation_offset').value = advancedSettings.mask_dilation_offset;
-    document.getElementById('capture').checked = advancedSettings.capture;
     document.getElementById('disable_cache').checked = advancedSettings.disable_cache;
   });
 }
@@ -100,7 +99,6 @@ function saveOptions(event) {
     },
     kernel_size: parseInt(formData.get('kernel_size')) ,
     mask_dilation_offset: parseInt(formData.get('mask_dilation_offset')) ,
-    capture: formData.get('capture') === 'on',
     disable_cache: formData.get('disable_cache') === 'on', // New setting
   };
 
@@ -155,7 +153,7 @@ function resetOptions() {
     },
     inpainter: {
       inpainter: 'default',
-      inpainting_size: 2048,
+      inpainting_size: 1024,
       inpainting_precision: 'fp32'
     },
     ocr: {
@@ -166,7 +164,6 @@ function resetOptions() {
     },
     kernel_size: 3,
     mask_dilation_offset: 0,
-    capture: false,
     disable_cache: false,
   };
 

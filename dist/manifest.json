@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "manga-image-translator-chrome-extension",
-    "version": "2.5.1",
+    "version": "3.0.0",
     "action": {
       "default_popup": "options.html"
     },
@@ -11,6 +11,7 @@
       "storage",
       "tabs",
       "scripting",
+      "webNavigation",
       "activeTab"
     ],
     "background": {
@@ -20,6 +21,13 @@
       "http://localhost/*",
       "*://*/*",
       "<all_urls>"
+    ],
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["contentScript.js"],
+        "run_at": "document_idle"
+      }
     ],
     "icons": {
        "128": "icons/128x128.png",
