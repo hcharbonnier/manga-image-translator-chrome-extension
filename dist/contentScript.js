@@ -400,7 +400,7 @@
     function shouldTranslateImage(image) {
         //showLoadingSpinner(image, 'Analyzing image');
 
-        const min_pixel_count = 10000;
+        const min_pixel_count = 700000;
         const width = image.naturalWidth;
         const height = image.naturalHeight;
         const nb_pixels = (width * height); // Check if image size is greater than 500,000 pixels
