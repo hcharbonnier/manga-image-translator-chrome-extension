@@ -6,7 +6,7 @@ const imagesDownloadQueue = new Set();
 let quickSettings = {};
 chrome.storage.sync.get("quickSettings", (data) => {
     if (chrome.runtime.lastError) {
-        chrome.storage.sync.set({ advancedSettings });
+        chrome.storage.sync.set({ quickSettings });
     } else {
         Object.assign(quickSettings, data.quickSettings);
     }
@@ -24,7 +24,7 @@ chrome.storage.sync.get("advancedSettings", (data) => {
 if (Object.keys(advancedSettings).length === 0) {
     advancedSettings = {
         detector: {
-            detector: 'default',
+            detector: 'ctd',
             detection_size: 1536,
             text_threshold: 0.5,
             det_rotate: false,
@@ -46,7 +46,7 @@ if (Object.keys(advancedSettings).length === 0) {
         },
         ocr: {
             use_mocr_merge: false,
-            ocr: 'mocr',
+            ocr: '48px',
             min_text_length: 0,
             ignore_bubble: 0
         },
@@ -68,7 +68,7 @@ if (Object.keys(advancedSettings).length === 0) {
         translator: {
             translator: 'nllb_big',
             target_lang: 'ENG',
-            no_text_lang_skip: false,
+            no_text_lang_skip: true,
             skip_lang: null,
             gpt_config: null,
             translator_chain: null,

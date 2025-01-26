@@ -138,10 +138,10 @@ function resetOptions() {
     },
     translator: {
       translator: 'nllb_big',
-      no_text_lang_skip: false
+      no_text_lang_skip: true
     },
     detector: {
-      detector: 'default',
+      detector: 'ctd',
       detection_size: 1536,
       text_threshold: 0.5,
       det_rotate: false,
@@ -158,7 +158,7 @@ function resetOptions() {
     },
     ocr: {
       use_mocr_merge: false,
-      ocr: '32px',
+      ocr: '48px',
       min_text_length: 0,
       ignore_bubble: 0
     },
