@@ -99,13 +99,24 @@ function updateIcon(tabId) {
     });
 }
 
-
 // Function to  update the extension icon based on the current tab
 chrome.tabs.onActivated.addListener(function (activeInfo) {
     try {
         updateIcon(activeInfo.tabId);
     } catch (error) {
         console.error('Error updating icon on tab activation:', error);
+    }
+});
+
+// Update the extension icon when a new tab is created
+chrome.tabs.onCreated.addListener((tab) => {
+    updateIcon(tab.id);
+});
+
+// Update the extension icon when the URL of a tab changes
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.url) {
+        updateIcon(tabId);
     }
 });
 
