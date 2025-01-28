@@ -1,78 +1,140 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Image Replacer Options</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="css/styles.css">
-  </head>
-  <body class="options-page">
-    <div class="container mt-5">
-      <form id="optionsForm">
-        <div class="row">
-          <div class="container col mt-8">
-            <div class="form-group">
-              <div class="custom-control custom-switch">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manga Translator</title>
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+      font-size: 12px; /* Set a smaller font size */
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 95%;
+    }
+
+    body.options-page {
+      width: 300px;
+      transform-origin: 0 0;
+    }
+.full-width {
+    width: 100%;
+  }
+.refresh-icon {
+  width: 32px; /* Adjust the size as needed */
+  height: 32px; /* Adjust the size as needed */
+  background-image: url('icons/refresh.png');
+  background-size: cover;
+  background-position: center;
+}
+
+    .card {
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group label {
+      font-weight: bold;
+    }
+
+    .custom-switch {
+      display: flex;
+      align-items: center;
+    }
+
+    .refresh-icon {
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .refresh-icon:hover {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body class="options-page">
+  <div class="container mt-1 full-width">
+    <div class=" full-width">
+      <div class="card-header bg-primary text-white text-center">
+        Manga translator options
+          <a href="#" id="refresh_page" style="display: none;">
+            <img src="icons/refresh.png" id="refresh_icon" alt="Refresh Page" class="refresh-icon">
+          </a>
+      </div>
+      <div class="card-body">
+        <form id="optionsForm">
+          <!-- Switches -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="form-group custom-switch">
                 <input type="checkbox" class="custom-control-input" id="enabled">
-                <label class="custom-control-label" for="enabled" id="enabledLabel">Enabled</label>
+                <label class="custom-control-label" for="enabled" id="enabledLabel">Enable Image Replacer</label>
               </div>
-            </div>
-            <div class="form-group">
-              <div style="display: flex; align-items: center;">
-                <div class="custom-control custom-switch" style="border-right: 1px solid #ccc; padding-right: 10px; margin-right: 10px;">
-                  <input type="checkbox" class="custom-control-input" id="colorize">
-                  <label class="custom-control-label" for="colorize">Colorize</label>
-                </div>
+              <div class="form-group custom-switch">
+                <input type="checkbox" class="custom-control-input" id="colorize">
+                <label class="custom-control-label" for="colorize">Enable Colorize Feature</label>
               </div>
-            </div>
-            <div class="form-group">
-              <div class="custom-control custom-switch">
+              <div class="form-group custom-switch">
                 <input type="checkbox" class="custom-control-input" id="capture">
-                <label class="custom-control-label" for="capture">Prefer screenshot to capture images (beta)</label>
+                <label class="custom-control-label" for="capture">Prefer Screenshots for Capture (Beta)</label>
               </div>
             </div>
           </div>
-          <div class="container col mt-3" id="refresh_page" style="display: none;">
-            <a href="#">
-              <img src="icons/refresh.png" id="refresh_icon" alt="Refresh Page" class="refresh-icon">
-            </a>
+
+          <!-- API URL Input -->
+          <div class="form-group">
+            <label for="apiUrl">API URL</label><span for="status" id="statusSpan"></span>
+            <input type="hidden" id="status">  
+            <input type="url" class="form-control" id="apiUrl" placeholder="Enter the API endpoint" required>
+            <small class="form-text text-muted">Make sure the API URL is valid and accessible.</small>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="apiUrl">API URL</label><span for="status" id="statusSpan"></span>
-          <input type="hidden" id="status">
-          <input type="text" class="form-control" id="apiUrl">
-        </div>
-        <div class="form-group">
-          <label for="target_language">Target Language:</label>
-          <select class="form-control" id="target_language">
-            <option value="ENG">English</option>
-            <option value="CSY">Czech</option>
-            <option value="DEU">German</option>
-            <option value="ESP">Spanish</option>
-            <option value="FRA">French</option>
-            <option value="HUN">Hungarian</option>
-            <option value="IND">Indonesian</option>
-            <option value="ITA">Italian</option>
-            <option value="JPN">Japanese</option>
-            <option value="KOR">Korean</option>
-            <option value="NLD">Dutch</option>
-            <option value="PLK">Polish</option>
-            <option value="PTB">Portuguese</option>
-            <option value="ROM">Romanian</option>
-            <option value="RUS">Russian</option>
-            <option value="CHS">Simplified Chinese</option>
-            <option value="CHT">Traditional Chinese</option>
-            <option value="TRK">Turkish</option>
-            <option value="VIN">Vietnamese</option>
-          </select>
-        </div>
-        <button type="submit" id="submit" class="btn btn-primary" hidden></button>
-        <button type="button" id="purgeCache" class="btn btn-danger">Purge Cache</button>
-      </form>
+
+          <!-- Target Language Dropdown -->
+          <div class="form-group">
+            <label for="target_language">Target Language</label>
+            <select class="form-control" id="target_language">
+              <option value="ENG">English</option>
+              <option value="CSY">Czech</option>
+              <option value="DEU">German</option>
+              <option value="ESP">Spanish</option>
+              <option value="FRA">French</option>
+              <option value="HUN">Hungarian</option>
+              <option value="IND">Indonesian</option>
+              <option value="ITA">Italian</option>
+              <option value="JPN">Japanese</option>
+              <option value="KOR">Korean</option>
+              <option value="NLD">Dutch</option>
+              <option value="PLK">Polish</option>
+              <option value="PTB">Portuguese</option>
+              <option value="ROM">Romanian</option>
+              <option value="RUS">Russian</option>
+              <option value="CHS">Simplified Chinese</option>
+              <option value="CHT">Traditional Chinese</option>
+              <option value="TRK">Turkish</option>
+              <option value="VIN">Vietnamese</option>
+            </select>
+          </div>
+
+          <!-- Buttons -->
+          <div class="form-group d-flex justify-content-between">
+            <button type="button" id="purgeCache" class="btn btn-danger">Purge Cache</button>
+            <button type="submit" id="submit" class="btn btn-primary" hidden></button>
+          </div>
+        </form>
+      </div>
+      <div class=" text-right">
+        <a href="settings.html" target="_blank" class="btn btn-link">Advanced Settings</a>
+      </div>
     </div>
-    <div class="form-group text-right">
-      <a href="settings.html" target="_blank">Advanced Settings</a>
-    </div>
-    <script src="options.js"></script>
-  </body>
+  </div>
+
+  <script src="options.js"></script>
+</body>
 </html>
