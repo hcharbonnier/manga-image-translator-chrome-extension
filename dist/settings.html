@@ -17,6 +17,10 @@
                 <label class="custom-control-label" for="disable_cache">Disable Cache</label>
               </div>
             </div>
+            <div class="form-group">
+              <label for="processing_cache_ttl">Processing Cache TTL (seconds):</label>
+              <input type="number" class="form-control" id="processing_cache_ttl" name="processing_cache_ttl" value="60">
+            </div>
           </div>
           <div class="col-md-3">
             <h3>Translator Settings</h3>
@@ -257,6 +261,14 @@
             <div class="form-group">
               <label for="mask_dilation_offset">Mask Dilation Offset:</label>
               <input type="number" class="form-control" id="mask_dilation_offset" name="mask_dilation_offset">
+            </div>
+            <div class="form-group">
+              <label for="colorizer_colorization_size">Colorization Max Image Size:</label>
+              <input type="number" class="form-control" id="colorizer_colorization_size" name="colorizer_colorization_size">
+            </div>
+            <div class="form-group">
+              <label for="colorizer_denoise_sigma">Colorization Denoise Sigma:</label>
+              <input type="number" class="form-control" id="colorizer_denoise_sigma" name="colorizer_denoise_sigma">
             </div>
           </div>
         </div>

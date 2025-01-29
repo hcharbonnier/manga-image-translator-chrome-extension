@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "manga-image-translator-chrome-extension",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "action": {
       "default_popup": "options.html"
     },
@@ -35,4 +35,4 @@
     },
     "description": " Client to manga-imagr-translator",
     "homepage_url": "https://github.com/hcharbonnier/manga-image-translator-chrome-extension" 
-  }
+}

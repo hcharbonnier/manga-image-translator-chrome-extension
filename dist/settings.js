@@ -41,6 +41,9 @@ function restoreOptions() {
     document.getElementById('kernel_size').value = advancedSettings.kernel_size;
     document.getElementById('mask_dilation_offset').value = advancedSettings.mask_dilation_offset;
     document.getElementById('disable_cache').checked = advancedSettings.disable_cache;
+    document.getElementById('colorizer_colorization_size').value = advancedSettings.colorizer.colorization_size;
+    document.getElementById('colorizer_denoise_sigma').value = advancedSettings.colorizer.denoise_sigma;
+    document.getElementById('processing_cache_ttl').value = advancedSettings.processing_cache_ttl || 60;
   });
 }
 
@@ -100,6 +103,11 @@ function saveOptions(event) {
     kernel_size: parseInt(formData.get('kernel_size')) ,
     mask_dilation_offset: parseInt(formData.get('mask_dilation_offset')) ,
     disable_cache: formData.get('disable_cache') === 'on', // New setting
+    colorizer: {
+      colorization_size: parseInt(formData.get('colorizer_colorization_size')),
+      denoise_sigma: parseInt(formData.get('colorizer_denoise_sigma'))
+    },
+    processing_cache_ttl: parseInt(formData.get('processing_cache_ttl')) || 60,
   };
 
   console.log('Modified advanced settings:', advancedSettings);
@@ -165,6 +173,11 @@ function resetOptions() {
     kernel_size: 3,
     mask_dilation_offset: 0,
     disable_cache: false,
+    colorizer: {
+      colorization_size: 3200,
+      denoise_sigma: 30
+    },
+    processing_cache_ttl: 60,
   };
 
   chrome.storage.sync.set({ advancedSettings: defaultadvancedSettings }, function() {
