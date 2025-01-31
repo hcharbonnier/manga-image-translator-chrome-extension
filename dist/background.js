@@ -1,5 +1,6 @@
 // Set to keep track of tabs that have already been processed
 const processedTabs = new Set();
+const processingList = new Set();
 
 // Retrieve quickSettings from chrome.storage.sync
 let quickSettings = {};
@@ -92,6 +93,9 @@ if (Object.keys(advancedSettings).length === 0) {
 }
 
 function sendMessage(type, data, port) {
+    // console.log("type:", type);
+    // console.log("data:", data);
+    // console.log("Sending message:", type, data);
     port.postMessage({ type, data });
 }
 
@@ -183,53 +187,20 @@ async function processDownloadQueue() {
     }
 }
 
-// let allImagesLoaded = false;
-async function submitImageToApi(
-    apiUrl,
-    imageBlob,
-    config,
-    originalSrc,
-    Imagetype,
-    cacheKey,
-    port
-) {
-    // const arrayBuffer = new Uint8Array(storedData.data).buffer; // Convert array back to ArrayBuffer
-
-    if (!imageBlob) {
-        return { taskId: "0", status: "error", statusText: "blob is null" };
-    }
-
-    const formData = new FormData();
-    formData.append("image", imageBlob);
-    formData.append("config", JSON.stringify(config));
-
-    const response = await fetch(apiUrl, {
-        method: "POST",
-        body: formData,
+async function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob); // Converts to Base64 string
     });
-
-    console.log("response:", response);
-    console.log("originalSrc:", originalSrc);
-    console.log("imageBlob:", imageBlob);
-
-    if (response.ok) {
-        await processApiResponse(
-            response,
-            originalSrc,
-            imageBlob,
-            cacheKey,
-            port
-        );
-    } else {
-        console.error("Error submitting image:", response.statusText);
-    }
 }
 
 async function processApiResponse(
     response,
     originalSrc,
     imgBlob,
-    cacheKey,
+    cacheKeys,
     port
 ) {
     const reader = response.body.getReader();
@@ -260,14 +231,30 @@ async function processApiResponse(
                 });
                 const arrayBuffer = await responseBlob.arrayBuffer();
                 const uint8Array = new Uint8Array(arrayBuffer);
+
+                starttime = performance.now();
+                const base64Data = await blobToBase64(responseBlob);
+                // write to cache, so content script can retrieve it
+
+                for (const cacheKey of cacheKeys)
+                    await chrome.storage.local.set({ [cacheKey]: base64Data });
+
+                console.log("Result stored in cache:", cacheKeys);
+
+                //log time to send message
+                starttime = performance.now();
                 const response = sendMessage(
-                    "translationSubmitted",
-                    { uint8Array, originalSrc, decodedData, cacheKey },
+                    "translationResult",
+                    { originalSrc, cacheKeys },
                     port
+                );
+                console.log(
+                    "Time to send message",
+                    performance.now() - starttime
                 );
             } else if (statusCode >= 1 && statusCode <= 4) {
                 const response = sendMessage(
-                    "updateLoadingSpinner",
+                    "updateTranslationProgress",
                     { originalSrc, decodedData },
                     port
                 );
@@ -354,6 +341,99 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     processedTabs.delete(tabId);
 });
 
+
+// let allImagesLoaded = false;
+// async function submitImageToApi(apiUrl, imageBlob, config, originalSrc, Imagetype, cacheKey, port) {
+//     // const arrayBuffer = new Uint8Array(storedData.data).buffer; // Convert array back to ArrayBuffer
+
+//     if (!imageBlob) {
+//         return { taskId: "0", status: "error", statusText: "blob is null" };
+//     }
+
+//     const formData = new FormData();
+//     formData.append("image", imageBlob);
+//     formData.append("config", JSON.stringify(config));
+
+//     const response = await fetch(apiUrl, {
+//         method: "POST",
+//         body: formData,
+//     });
+
+//     console.log("response:", response);
+//     console.log("originalSrc:", originalSrc);
+//     console.log("imageBlob:", imageBlob);
+
+//     if (response.ok) {
+//         await processApiResponse(
+//             response,
+//             originalSrc,
+//             imageBlob,
+//             cacheKey,
+//             port
+//         );
+//     } else {
+//         console.error("Error submitting image:", response.statusText);
+//     }
+// }
+async function submitImageToApi(apiUrl, imageBlob, config, originalSrc, imageType, cacheKeys, port) {
+    if (! cacheKeys)
+        cacheKeys = [originalSrc];
+    for (const cacheKey of cacheKeys){
+        if (processingList.has(cacheKey)) {
+            sendMessage("updateTranslationProgress", { originalSrc, decodedData: "Already in processing list" }, port);
+            sendMessage("translationResult", { originalSrc, cacheKeys }, port);
+            return;
+        }
+    
+    }
+
+    //if image is in cache return the result and stop processing
+    console.log("Checking cache for:", cacheKeys);
+    for (const cacheKey of cacheKeys) {
+        const cacheCheckResult = await new Promise((resolve) => {
+            chrome.storage.local.get(cacheKey, (res) => resolve(res));
+        });
+        if (cacheCheckResult[cacheKey]) {
+            console.log("Result found in cache:", cacheKey);
+            sendMessage("translationResult", { originalSrc, cacheKeys: cacheKeys }, port);
+            return;
+        }
+        console.log("Result not found in cache:", cacheKey);
+    }
+
+    console.log("Result not found in cache:", cacheKeys);
+
+    console.log("Submitting image to API:", cacheKeys);
+    for (const cacheKey of cacheKeys)
+        processingList.add(cacheKey);
+
+    if (!imageBlob) {
+        return { taskId: "0", status: "error", statusText: "blob is null" };
+    }
+
+    const formData = new FormData();
+    formData.append("image", imageBlob);
+    formData.append("config", JSON.stringify(config));
+
+    const response = await fetch(apiUrl, {
+        method: "POST",
+        body: formData,
+    });
+
+    if (response.ok) {
+        await processApiResponse(response, originalSrc, imageBlob, cacheKeys, port);
+    } else {
+        //send message through connect to content script
+        sendMessage("updateTranslationProgress", { originalSrc, decodedData: "Error submitting image\nretry in Capture mode" }, port);
+
+        console.error("Error submitting image:", response.statusText);
+    }
+
+    console.log("Removing from processing list:", cacheKeys);
+    for (const cacheKey of cacheKeys)
+        processingList.delete(cacheKey);
+}
+
 chrome.runtime.onConnect.addListener((port) => {
     console.log("Connected:", port.name);
 
@@ -369,16 +449,25 @@ chrome.runtime.onConnect.addListener((port) => {
                     type: message.data.imageType,
                 }); // Use stored MIME type
 
-                submitImageToApi(
-                    message.data.apiUrl,
-                    imageBlob,
-                    message.data.config,
-                    message.data.originalSrc,
-                    message.data.imageType,
-                    message.data.cacheKey,
-                    port
-                );
-                console.log("Submitted image to API");
+                // chrome.storage.local.get(message.data.cacheKey, (result) => {
+                //     if (result[message.data.cacheKey]) {
+                //         const response = sendMessage(
+                //             "translationResult",
+                //             { originalSrc: message.data.originalSrc, cacheKey: message.data.cacheKey },
+                //             port
+                //         );
+                //     } else {
+                        submitImageToApi(
+                            message.data.apiUrl,
+                            imageBlob,
+                            message.data.config,
+                            message.data.originalSrc,
+                            message.data.imageType,
+                            message.data.cacheKeys,
+                            port
+                        );
+                //     }
+                // });
                 break;
 
             case "getScreenshot":
