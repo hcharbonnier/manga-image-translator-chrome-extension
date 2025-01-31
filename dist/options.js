@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
       chrome.runtime.sendMessage({ type: 'reloadCurrentTab' });
       chrome.runtime.sendMessage({ type: 'hideRefreshIcon' });
       chrome.storage.local.set({ refreshIconVisible: false });
+      window.close();
     });
   }
 

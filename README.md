@@ -1,26 +1,68 @@
-# manga-image-translator-chrome-extension
+# Manga Image Translator Chrome Extension
 
-This README file provides information about the manga-image-translator-chrome-extension project. The project aims to create a Chrome extension that utilizes the manga-image-translator API to translate manga.
+A Chrome extension that integrates with the [Manga Image Translator](https://github.com/zyddnys/manga-image-translator) API to translate manga directly within the browser.
 
-Please note that this extension is currently a Proof of Concept and may not function optimally on all websites.
+> **Note:** This extension is currently a **Proof of Concept** and may not work optimally on all websites.
 
-To use the manga-image-translator API, the following requirements must be met:
+---
 
-To install this extension, follow the steps below:
+## 🚀 Features
 
-1. Go to the [Chrome Extensions Developer Documentation](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
-2. Follow the instructions to install the extension as an unpacked extension.
+- Translates manga images in real time using the **Manga Image Translator API**.
+- Colorize manga in realtime
+- Works directly in the browser without requiring downloads.
+- Keep in Chrome cache the transated images (each set a diffenrents settings have a dedicated cache)
+- All settings from [Manga Image Translator](https://github.com/zyddnys/manga-image-translator) are availables in the Advanced settings page
+- Beta: Option to capture the images via Chrome screenshot feature, in order to translate images on website, requiring a special Origin when fetching the images. I this mode don't touch scroll the page until the capture is finished 
 
-- You need to have a manga-image-translator instance. You can find the repository for the manga-image-translator [here](https://github.com/zyddnys/manga-image-translator).
-- The manga-image-translator instance must be accessible via HTTPS and have a valid SSL certificate.
-- CORS (Cross-Origin Resource Sharing) must be configured for the manga-image-translator instance with the following settings:
-    - Access-Control-Allow-Origin: "*"
-    - Access-Control-Allow-Methods: "GET, POST, OPTIONS"
-    - Access-Control-Allow-Headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range"
-    - Access-Control-Expose-Headers: "Content-Length,Content-Range"
+---
 
-Supplementary Information:
+## 🛠 Requirements
 
-- The log console contains various logs.
-- Some errors in the log are expected. The extension first attempts to access images without re-downloading them. If this fails, usually due to CORS issues, the image is then downloaded.
-- The future evolution of this extension is uncertain. It was primarily created as an opportunity to develop a first Chrome extension.
+To use this extension, ensure you have:
+
+- A running instance of [Manga Image Translator](https://github.com/zyddnys/manga-image-translator) in server mode.
+- To have acceptable perrformance, ensure [Manga Image Translator](https://github.com/zyddnys/manga-image-translator) is set to use GPU.
+
+---
+
+## 📌 Installation Guide
+
+### 1. Install the Extension
+
+Follow these steps to install the extension manually:
+
+1. Download or clone this repository.
+2. Open **Google Chrome** and navigate to [`chrome://extensions/`](chrome://extensions/).
+3. Enable **Developer mode** (toggle in the top right corner).
+4. Click **Load unpacked** and select the extension's root folder.
+
+### 2. Set Up the Extension
+
+1. Pin the extension on the Chrome toolbar for easy access.
+2. Open the extension popup by clicking on the extension icon and enter your **Manga Image Translator instance URL** (e.g., `http://127.0.0.1:5003`).
+3. Click **Enable** to activate translation for the current website.
+
+---
+
+## 📝 Notes
+
+- Some errors in the logs are **normal** as the extension tries different methods to fetch and translate images.
+- Performance and compatibility may vary depending on the website.
+
+---
+
+## 🛠 Troubleshooting
+
+- If the extension does not work, verify that:
+  - Your Manga Image Translator instance is **running and accessible**.
+  - The **API URL** is correctly configured in the extension settings.
+  - The website allows image processing via third-party scripts.
+
+For any issues, feel free to **open an issue** on this repository!
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).how 
