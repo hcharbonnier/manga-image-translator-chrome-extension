@@ -93,7 +93,7 @@
             <label for="apiUrl">API URL</label><span for="status" id="statusSpan"></span>
             <input type="hidden" id="status">  
             <input type="url" class="form-control" id="apiUrl" placeholder="Enter the API endpoint" required>
-            <small class="form-text text-muted">Make sure the API URL is valid and accessible.</small>
+            <small class="form-text text-muted" id="apiUrlLabel">Make sure the API URL is valid and accessible.</small>
           </div>
 
           <!-- Target Language Dropdown -->
@@ -129,7 +129,7 @@
           </div>
         </form>
       </div>
-      <div class=" text-right">
+      <div class=" text-right" id="advancedSettings">
         <a href="settings.html" target="_blank" class="btn btn-link">Advanced Settings</a>
       </div>
     </div>

@@ -22,6 +22,50 @@ function handleRefreshIconMessage(request) {
   }
 }
 
+// Function to toggle form visibility
+function toggleFormVisibility(isEnabled) {
+  const formElements = document.querySelectorAll('#optionsForm input, #optionsForm select, #optionsForm label:not(#enabledLabel), #purgeCache, #advancedSettings, #apiUrlLabel');
+  formElements.forEach(element => {
+    element.style.display = isEnabled ? 'block' : 'none';
+  });
+}
+
+// Debounce function to delay API URL validation
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+// Function to validate the API URL
+function validateApiUrl() {
+  const apiUrl = document.getElementById('apiUrl').value;
+  fetch(`${apiUrl}/queue-size`, { method: 'POST' })
+    .then(response => {
+      return response.json();
+    })
+    .then(data => {
+      const parsedData = parseInt(data);
+      if (!isNaN(parsedData)) {
+        document.getElementById('statusSpan').textContent = 'API URL is valid';
+        document.getElementById('statusSpan').style.color = 'green';
+      } else {
+        document.getElementById('statusSpan').textContent = 'Invalid API response';
+        document.getElementById('statusSpan').style.color = 'red';
+      }
+    })
+    .catch(error => {
+      document.getElementById('statusSpan').textContent = error.message;
+      document.getElementById('statusSpan').style.color = 'red';
+      console.error('Error validating API URL:', error);
+    });
+}
+
+// Debounced version of the validateApiUrl function
+const debouncedValidateApiUrl = debounce(validateApiUrl, 1000);
+
 // Saves options to chrome.storage
 function saveOptions(e) {
   if (e) e.preventDefault();
@@ -48,6 +92,7 @@ function saveOptions(e) {
       chrome.storage.sync.set({ quickSettings }, function () {
         updateIcon(isEnabled);
         updateRefreshIconVisibility();
+        toggleFormVisibility(isEnabled);
         chrome.runtime.sendMessage({ type: 'settings-updated' });
         chrome.runtime.sendMessage({ type: 'settings-modified' }); // Added message to background.js
       });
@@ -78,6 +123,7 @@ function restoreOptions() {
       document.getElementById('enabledLabel').textContent = `Enabled for ${currentWebsite}`;
 
       updateIcon(items.enabledWebsites[currentWebsite] || false);
+      toggleFormVisibility(items.enabledWebsites[currentWebsite] || false);
 
       // Restore the state of the refresh icon
       chrome.storage.local.get('refreshIconVisible', function (data) {
@@ -134,12 +180,20 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Show the refresh icon when needed
-  document.getElementById('enabled').addEventListener('change', updateRefreshIconVisibility);
+  document.getElementById('enabled').addEventListener('change', function() {
+    updateRefreshIconVisibility();
+    toggleFormVisibility(this.checked);
+  });
   document.getElementById('colorize').addEventListener('change', updateRefreshIconVisibility);
   document.getElementById('target_language').addEventListener('change', updateRefreshIconVisibility);
 
   // Add event listener to purge cache button
   document.getElementById('purgeCache').addEventListener('click', purgeCache);
+
+  // Add event listener to API URL input for validation
+  document.getElementById('apiUrl').addEventListener('input', function() {
+    debouncedValidateApiUrl();
+  });
 
   chrome.runtime.onMessage.addListener(handleRefreshIconMessage);
 });
