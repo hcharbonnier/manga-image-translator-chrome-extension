@@ -2,10 +2,11 @@
     let mainMessageBoxID = "mainMessageBox";
     let keyboardDisabled = false;
     let port = chrome.runtime.connect({ name: "MangaTranslator" });
-    let ignoreMutations = false;
-    let ignoreNextMutation = false;
     let mainObserverStarted = false;
     let observer;
+    let imagesToCapture = [];
+    let imagesCaptured = [];
+    let capturedImagedTranslated = [];
 
     function disableKeyboard() {
         if (!keyboardDisabled) {
@@ -110,6 +111,7 @@
                 }
 
                 try {
+
                     const result = await retryFetchImageResult();
                     const imageBlob = await (await fetch(result)).blob();
                     const objectUrl = URL.createObjectURL(imageBlob);
@@ -124,8 +126,7 @@
                         img.setAttribute("imagetranslated", "true");
                         img.setAttribute("sourceURL", img.src);
                         img.setAttribute("translatedURL", objectUrl);
-                        updateImageSource(img, objectUrl);
-                        updateImageSourceSet(img, objectUrl);
+                        capturedImagedTranslated.push({img: img, objectUrl: objectUrl});
                         for (const cacheKey of cacheKeys)
                             storeBlobInCache(imageBlob, cacheKey);
                         //delete cacheKey from storage after 2s, but don't wait for it to finish
@@ -263,7 +264,15 @@
 
     async function getImageBlob(img, screenshotUrl = null) {
         if (quickSettings.capture) {
-            return (blob = await captureFullImage(img));
+            let capturedImage
+            imagesToCapture.push(img);
+            while (imagesCaptured[img.src] === undefined) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            capturedImage = imagesCaptured[img.src];
+            imagesCaptured[img.src].undefined;
+
+            return capturedImage;
         }
 
         try {
@@ -481,123 +490,122 @@
         }
     }
 
-    async function captureFullImage(img) {
-        disableScrolling();
-        disableKeyboard();
-        disableScrollbar();
-        const rect = img.getBoundingClientRect();
+    async function captureFullImageWorker() {
+        setInterval(async() => {
+            let img;
+            if (imagesToCapture.length === 0) {
+                return;
+            }
 
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        const totalHeight = rect.height;
-        const totalWidth = rect.width;
-        let capturedHeight = 0;
-        const canvas = document.createElement("canvas");
-        canvas.width = totalWidth * devicePixelRatio;
-        canvas.height = totalHeight * devicePixelRatio;
-        const ctx = canvas.getContext("2d");
+            img = imagesToCapture.shift();
+            console.log("Capturing image:", img.src);
 
-        const pageMaskID = addPageMask();
-        const messageBoxID = messagebox({
-            txt: "Capturing images...",
-        });
+            disableScrolling();
+            disableKeyboard();
+            disableScrollbar();
+            const rect = img.getBoundingClientRect();
 
-        // Scroll the image to the top of the screen if possible
-        const wantToScroll = rect.top + window.scrollY;
-        window.scrollTo(0, wantToScroll);
-        await waitUntilScrollCompletes(wantToScroll);
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const totalHeight = rect.height;
+            const totalWidth = rect.width;
+            let capturedHeight = 0;
+            const canvas = document.createElement("canvas");
+            canvas.width = totalWidth * devicePixelRatio;
+            canvas.height = totalHeight * devicePixelRatio;
+            const ctx = canvas.getContext("2d");
 
-        while (capturedHeight < totalHeight) {
-
-            hideDiv(pageMaskID);
-            hideDiv(messageBoxID);
-
-            // Wait 50ms after hiding the spinner
-            await new Promise((resolve) => setTimeout(resolve, 50));
-            const screenshotUrl = await getScreenshot();
-
-            showDiv(pageMaskID);
-            showDiv(messageBoxID);
-
-            // Download the full screenshot
-            const fullScreenshotBlob = await fetch(screenshotUrl).then((res) =>
-                res.blob()
-            );
-
-            const partialBlob = await captureImage(img, screenshotUrl);
-            const image = new Image();
-            image.src = URL.createObjectURL(partialBlob);
-            await new Promise((resolve) => {
-                image.onload = resolve;
-                image.onerror = (error) => {
-                    console.error("Error loading partial image:", error);
-                    resolve();
-                };
+            const pageMaskID = addPageMask();
+            const messageBoxID = messagebox({
+                txt: "Capturing images...",
             });
 
-            const partialHeightPx = image.height / devicePixelRatio;
-            ctx.drawImage(
-                image,
-                0,
-                0,
-                totalWidth * devicePixelRatio,
-                Math.min(totalHeight - capturedHeight, window.innerHeight) *
-                    devicePixelRatio,
-                0,
-                capturedHeight * devicePixelRatio,
-                totalWidth * devicePixelRatio,
-                Math.min(totalHeight - capturedHeight, window.innerHeight) *
-                    devicePixelRatio
-            );
+            // Scroll the image to the top of the screen if possible
+            const wantToScroll = rect.top + window.scrollY;
+            window.scrollTo(0, wantToScroll);
+            await waitUntilScrollCompletes(wantToScroll);
 
-            capturedHeight += partialHeightPx; // Replaced window.innerHeight
-            if (capturedHeight < totalHeight) {
-                window.scrollBy(0, window.innerHeight);
-            } else {
-                await new Promise((resolve) => setTimeout(resolve, 501)); // Wait for scroll to complete & Respect Chrome rate limit
-                // Crop the part of the image which is already on the previous partial screenshot
-                const remainingHeight =
-                    totalHeight - capturedHeight + partialHeightPx;
+            while (capturedHeight < totalHeight) {
+
+                hideDiv(pageMaskID);
+                hideDiv(messageBoxID);
+
+                // Wait 50ms after hiding the spinner
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                const screenshotUrl = await getScreenshot();
+
+                showDiv(pageMaskID);
+                showDiv(messageBoxID);
+
+                const partialBlob = await captureImage(img, screenshotUrl);
+                const image = new Image();
+                image.src = URL.createObjectURL(partialBlob);
+                await new Promise((resolve) => {
+                    image.onload = resolve;
+                    image.onerror = (error) => {
+                        console.error("Error loading partial image:", error);
+                        resolve();
+                    };
+                });
+
+                const partialHeightPx = image.height / devicePixelRatio;
                 ctx.drawImage(
                     image,
                     0,
-                    partialHeightPx - remainingHeight * devicePixelRatio,
-                    totalWidth * devicePixelRatio,
-                    remainingHeight * devicePixelRatio,
                     0,
-                    capturedHeight * devicePixelRatio -
-                        remainingHeight * devicePixelRatio,
                     totalWidth * devicePixelRatio,
-                    remainingHeight * devicePixelRatio
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
+                        devicePixelRatio,
+                    0,
+                    capturedHeight * devicePixelRatio,
+                    totalWidth * devicePixelRatio,
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
+                        devicePixelRatio
                 );
 
-                // Additional cropping if we couldn't scroll as much as predicted
-                if (capturedHeight > totalHeight) {
-                    const excessHeight = capturedHeight - totalHeight;
-                    ctx.clearRect(
+                capturedHeight += partialHeightPx; // Replaced window.innerHeight
+                if (capturedHeight < totalHeight) {
+                    window.scrollBy(0, window.innerHeight);
+                } else {
+                    await new Promise((resolve) => setTimeout(resolve, 501)); // Wait for scroll to complete & Respect Chrome rate limit
+                    // Crop the part of the image which is already on the previous partial screenshot
+                    const remainingHeight =
+                        totalHeight - capturedHeight + partialHeightPx;
+                    ctx.drawImage(
+                        image,
                         0,
-                        totalHeight * devicePixelRatio,
+                        partialHeightPx - remainingHeight * devicePixelRatio,
                         totalWidth * devicePixelRatio,
-                        excessHeight * devicePixelRatio
+                        remainingHeight * devicePixelRatio,
+                        0,
+                        capturedHeight * devicePixelRatio -
+                            remainingHeight * devicePixelRatio,
+                        totalWidth * devicePixelRatio,
+                        remainingHeight * devicePixelRatio
                     );
+
+                    // Additional cropping if we couldn't scroll as much as predicted
+                    if (capturedHeight > totalHeight) {
+                        const excessHeight = capturedHeight - totalHeight;
+                        ctx.clearRect(
+                            0,
+                            totalHeight * devicePixelRatio,
+                            totalWidth * devicePixelRatio,
+                            excessHeight * devicePixelRatio
+                        );
+                    }
                 }
             }
-        }
 
-        restoreScrolling();
-        enableKeyboard();
-        enableScrollbar();
-        removePageMask(pageMaskID);
-        deleteMessagebox(messageBoxID);
+            restoreScrolling();
+            enableKeyboard();
+            enableScrollbar();
+            removePageMask(pageMaskID);
+            deleteMessagebox(messageBoxID);
 
-        return new Promise((resolve) => {
-            canvas.toBlob(
-                (blob) => {
-                    resolve(blob);
-                },
-                "image/jpeg",
-                1.0
-            );
-        });
+            imagesCaptured[img.src] = new Promise((resolve) => {
+                canvas.toBlob(resolve, "image/jpeg", 1.0);
+            });
+        }, 100);
     }
 
     async function submitImageToBackground(apiUrl, image, imageBlob, cacheKeys) {
@@ -983,18 +991,29 @@
     } = {}) {
 
         if (img) {
+            console.log("img:", img);
             //look for the real image, not the placeholder
             let list_src = document.querySelectorAll(`img[src="${img.src}"]`);
             list_original_src = document.querySelectorAll(`img[data-original-src="${img.dataset.originalSrc}"]`);
 
+            console.log("list_src:", list_src);
+            console.log("list_original_src:", list_original_src);
             //real_image contient l'image réelle, pas le placeholder
             real_image = list_original_src.length > 0 ? list_original_src : list_src;
             img=real_image[0];
-
-            const rect = img.getBoundingClientRect();
-            top = rect.top + window.scrollY; // Adjust top relative to the page
-            left = rect.left + window.scrollX; // Adjust left relative to the page
-        }
+            let rect;
+            try {
+                rect = img.getBoundingClientRect();
+            }
+            catch (error) {
+                console.error("Error getting bounding rect:", error);
+                return;
+            }
+                top = rect.top + window.scrollY; // Adjust top relative to the page
+                left = rect.left + window.scrollX; // Adjust left relative to the page
+                top = window.scrollY + top;
+                left = window.scrollX + left
+            }
 
         // si le div existe déjà on met à jour le text
         let messageboxDiv = document.getElementById(id);
@@ -1222,7 +1241,25 @@
         "advancedSettings",
     ]);
 
+    async function imageReplacerWorker() {
+        setInterval(async () => {
+            if (capturedImagedTranslated.length === 0) {
+                return;
+            }
+            if (quickSettings.capture && imagesToCapture.length != 0) {
+                return;
+            }
+            const {img, objectUrl} = capturedImagedTranslated.shift();
+            updateImageSource(img, objectUrl);
+            updateImageSourceSet(img, objectUrl);
+        }, 10);
+    }
+
     if (quickSettings.enabledWebsites[domain]) {
+        // Run the capture function to capture in the background
+        captureFullImageWorker();
+        imageReplacerWorker();
+
         console.log(`Starting translation process for domain: ${domain}`);
 
         await waitForDomToStabilize();
@@ -1240,11 +1277,6 @@
 
         // Mutation observer to detect new images
         observer = new MutationObserver(async (mutations) => {
-            if (ignoreNextMutation) {
-                ignoreNextMutation = false;
-                return;
-            }
-            if (ignoreMutations) return;
             let newImages = [];
             for (const mutation of mutations) {
                 if (mutation.type === "childList") {
