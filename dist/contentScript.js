@@ -240,7 +240,7 @@
                     hideDiv(mainMessageBoxID);
                     imgBlob = await getImageBlob(image, screenshotUrl);
                     showDiv(messageboxID);
-                    showDiv(messageboxID);
+                    showDiv(mainMessageBoxID);
                 } catch (error) {
                     console.error("Error getting image blob:", error);
                     deleteMessagebox(image.dataset.originalSrc);
@@ -726,7 +726,7 @@
         const nb_pixels = width * height; // Check if image size is greater than 700,000 pixels
 
 
-        if (! isVisible) { //check hidden tips in style, etc..
+        if (! isVisible(image)) { //check hidden tips in style, etc..
             console.log("Image is not visible");
             return false;
         }
@@ -755,7 +755,7 @@
             image.getAttribute("sourceURL") === image.src
         ) {
             //should be true? maybe...
-            console.Error("Image has been translated but sourceURL is the same as src!!");
+            console.error("Image has been translated but sourceURL is the same as src!!");
             return true;
         }
 
@@ -839,10 +839,10 @@
         return cacheKeys;
     }
 
-    async function checkCacheForImage(cachekeys) {
+    async function checkCacheForImage(cacheKeys) {
         let cacheKey;
         try {
-            for (const cacheKey of cachekeys) {
+            for (cacheKey of cacheKeys) {
                 const result = await retrieveBlobFromCache(cacheKey);
                 if (result) {
                     const objectUrl = URL.createObjectURL(result);
@@ -1010,8 +1010,8 @@
             }
                 top = rect.top + window.scrollY; // Adjust top relative to the page
                 left = rect.left + window.scrollX; // Adjust left relative to the page
-                top = window.scrollY + top;
-                left = window.scrollX + left
+                // top = window.scrollY + top;
+                // left = window.scrollX + left
             }
 
         // si le div existe déjà on met à jour le text
@@ -1126,9 +1126,6 @@
                         checkImageSize(0);
                     };
                     img.onerror = function () {
-                        resolve();
-                    }
-                    img.onDisconnect = function () {
                         resolve();
                     }
 
