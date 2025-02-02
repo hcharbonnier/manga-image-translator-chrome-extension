@@ -94,6 +94,7 @@ function restoreOptions() {
 // Purge cache
 function purgeCache() {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    updateRefreshIconVisibility();
     chrome.tabs.sendMessage(tabs[0].id, { type: 'purgeCache' });
   });
 }

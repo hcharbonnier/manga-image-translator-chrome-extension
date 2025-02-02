@@ -1,5 +1,6 @@
 // Set to keep track of tabs that have already been processed
 const processedTabs = new Set();
+const processingList = new Set();
 
 // Retrieve quickSettings from chrome.storage.sync
 let quickSettings = {};
@@ -183,53 +184,20 @@ async function processDownloadQueue() {
     }
 }
 
-// let allImagesLoaded = false;
-async function submitImageToApi(
-    apiUrl,
-    imageBlob,
-    config,
-    originalSrc,
-    Imagetype,
-    cacheKey,
-    port
-) {
-    // const arrayBuffer = new Uint8Array(storedData.data).buffer; // Convert array back to ArrayBuffer
-
-    if (!imageBlob) {
-        return { taskId: "0", status: "error", statusText: "blob is null" };
-    }
-
-    const formData = new FormData();
-    formData.append("image", imageBlob);
-    formData.append("config", JSON.stringify(config));
-
-    const response = await fetch(apiUrl, {
-        method: "POST",
-        body: formData,
+async function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob); // Converts to Base64 string
     });
-
-    console.log("response:", response);
-    console.log("originalSrc:", originalSrc);
-    console.log("imageBlob:", imageBlob);
-
-    if (response.ok) {
-        await processApiResponse(
-            response,
-            originalSrc,
-            imageBlob,
-            cacheKey,
-            port
-        );
-    } else {
-        console.error("Error submitting image:", response.statusText);
-    }
 }
 
 async function processApiResponse(
     response,
     originalSrc,
     imgBlob,
-    cacheKey,
+    cacheKeys,
     port
 ) {
     const reader = response.body.getReader();
@@ -260,14 +228,24 @@ async function processApiResponse(
                 });
                 const arrayBuffer = await responseBlob.arrayBuffer();
                 const uint8Array = new Uint8Array(arrayBuffer);
+
+                starttime = performance.now();
+                const base64Data = await blobToBase64(responseBlob);
+                // write to cache, so content script can retrieve it
+
+                for (const cacheKey of cacheKeys)
+                    await chrome.storage.local.set({ [cacheKey]: base64Data });
+
+                //log time to send message
+                starttime = performance.now();
                 const response = sendMessage(
-                    "translationSubmitted",
-                    { uint8Array, originalSrc, decodedData, cacheKey },
+                    "translationResult",
+                    { originalSrc, cacheKeys },
                     port
                 );
             } else if (statusCode >= 1 && statusCode <= 4) {
                 const response = sendMessage(
-                    "updateLoadingSpinner",
+                    "updateTranslationProgress",
                     { originalSrc, decodedData },
                     port
                 );
@@ -354,13 +332,62 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     processedTabs.delete(tabId);
 });
 
+async function submitImageToApi(apiUrl, imageBlob, config, originalSrc, imageType, cacheKeys, port) {
+    if (! cacheKeys)
+        cacheKeys = [originalSrc];
+    for (const cacheKey of cacheKeys){
+        if (processingList.has(cacheKey)) {
+            sendMessage("updateTranslationProgress", { originalSrc, decodedData: "Already in processing list" }, port);
+            sendMessage("translationResult", { originalSrc, cacheKeys }, port);
+            return;
+        }
+    
+    }
+
+    //if image is in cache return the result and stop processing
+    for (const cacheKey of cacheKeys) {
+        const cacheCheckResult = await new Promise((resolve) => {
+            chrome.storage.local.get(cacheKey, (res) => resolve(res));
+        });
+        if (cacheCheckResult[cacheKey]) {
+            sendMessage("translationResult", { originalSrc, cacheKeys: cacheKeys }, port);
+            return;
+        }
+    }
+    for (const cacheKey of cacheKeys)
+        processingList.add(cacheKey);
+
+    if (!imageBlob) {
+        return { taskId: "0", status: "error", statusText: "blob is null" };
+    }
+
+    const formData = new FormData();
+    formData.append("image", imageBlob);
+    formData.append("config", JSON.stringify(config));
+
+    const response = await fetch(apiUrl, {
+        method: "POST",
+        body: formData,
+    });
+
+    if (response.ok) {
+        await processApiResponse(response, originalSrc, imageBlob, cacheKeys, port);
+    } else {
+        //send message through connect to content script
+        sendMessage("updateTranslationProgress", { originalSrc, decodedData: "Error submitting image\nretry in Capture mode" }, port);
+        console.error("Error submitting image:", response.statusText);
+    }
+
+    for (const cacheKey of cacheKeys)
+        processingList.delete(cacheKey);
+}
+
 chrome.runtime.onConnect.addListener((port) => {
     console.log("Connected:", port.name);
 
     port.onMessage.addListener((message, sender) => {
         switch (message.type) {
             case "submitImage":
-                console.log(message.data);
                 const uint8Array = new Uint8Array(
                     Object.values(message.data.uint8Array)
                 );
@@ -375,14 +402,12 @@ chrome.runtime.onConnect.addListener((port) => {
                     message.data.config,
                     message.data.originalSrc,
                     message.data.imageType,
-                    message.data.cacheKey,
+                    message.data.cacheKeys,
                     port
                 );
-                console.log("Submitted image to API");
                 break;
 
             case "getScreenshot":
-                console.log("Capturing screenshot");
                 async function captureScreenshot(retries = 5) {
                     if (retries === 0) {
                         sendMessage(
@@ -594,7 +619,6 @@ chrome.runtime.onConnect.addListener((port) => {
                         { success: true },
                         port
                     );
-                    console.log("All processing keys removed");
                 };
 
                 requestRemoveAll.onerror = (event) => {
