@@ -1,4 +1,5 @@
 (async () => {
+    let mainMessageBoxID = "mainMessageBox";
     let port = chrome.runtime.connect({ name: "MangaTranslator" });
 
     port.onDisconnect.addListener(() => {
@@ -210,7 +211,9 @@
             if (quickSettings.capture) {
                 try {
                     hideDiv(messageboxID);
+                    hideDiv(mainMessageBoxID);
                     imgBlob = await getImageBlob(image, screenshotUrl);
+                    showDiv(messageboxID);
                     showDiv(messageboxID);
                 } catch (error) {
                     console.error("Error getting image blob:", error);
@@ -950,6 +953,7 @@
         top = 0,
         left = 0,
         id = `messagebox-${Date.now()}`,
+        delay = 0,
     } = {}) {
 
         if (img) {
@@ -971,9 +975,8 @@
 
         if (messageboxDiv) {
             messageboxDiv.innerText = txt;
-            return messageboxDiv.id;
         } else {
-            const messageboxDiv = document.createElement("div");
+            messageboxDiv = document.createElement("div");
             Object.assign(messageboxDiv.style, {
                 position: "absolute",
                 top: `${top}px`,
@@ -992,8 +995,13 @@
             if (img) {
                 observeImageVisibility(img, messageboxDiv.id);
             }
-            return messageboxDiv.id;
         }
+        if (delay > 0) {
+            setTimeout(() => {
+                deleteMessagebox(messageboxDiv.id);
+            }, delay);
+        }
+        return messageboxDiv.id;
     }
 
     function deleteMessagebox(id=null) {
@@ -1041,12 +1049,27 @@
         }
     }
 
+    function waitForDomToStabilize() {
+        return new Promise((resolve) => {
+            messagebox({ txt: "Waiting for DOM to stabilize", id: mainMessageBoxID });
+            let previousCount = -1;
+            const interval = setInterval(() => {
+                const images = document.getElementsByTagName("img");
+                if (images.length === previousCount) {
+                    clearInterval(interval);
+                    deleteMessagebox(mainMessageBoxID);
+                    wait_for_all_images_to_be_loaded(images).then(() => {
+                        resolve();
+                    });
+                } else {
+                    previousCount = images.length;
+                }
+            }, 50);
+        });
+    }
+
     async function wait_for_all_images_to_be_loaded(images) {
         // Add spinner to the top left corner
-        messageboxID = messagebox({
-            txt: "Waiting for all images to load",
-        });
-
         if (!Array.isArray(images)) {
             images = Array.from(images);
         }
@@ -1058,9 +1081,24 @@
                     img.onload = function () {
                         checkImageSize(0);
                     };
+                    img.onerror = function () {
+                        resolve();
+                    }
+                    img.onDisconnect = function () {
+                        resolve();
+                    }
+
+                    //log images  that are not loaded, nor errored, nor disconnected
+                    setTimeout(() => {
+                        if (!img.complete && !img.onerror && !img.onDisconnect) {
+                            console.log(`Image not loaded: ${img.src}`);
+                            resolve();
+                        }
+                    }, 5000);
                 }
 
                 function checkImageSize(i) {
+                    console.log(`Checking image size: ${img.src}`);
                     if (i > 6) {
                         console.log(`Failed to check image size: ${img.src}`);
                         resolve();
@@ -1090,51 +1128,11 @@
             });
         });
         await Promise.all(promises);
-
-        // Remove messagebox after all images are loaded
-        deleteMessagebox(messageboxID);
-    }
-
-    function waitForDomToStabilize(callback) {
-        console.log("Waiting for DOM to stabilize");
-        let previousCount = 0;
-        const interval = setInterval(() => {
-            const images = document.getElementsByTagName("img");
-            if (images.length === previousCount) {
-                clearInterval(interval);
-                console.log(
-                    "DOM stabilized, calling wait_for_all_images_to_be_loaded"
-                );
-
-                wait_for_all_images_to_be_loaded(images).then(callback);
-                console.log("All images loaded and stable");
-            } else {
-                previousCount = images.length;
-            }
-        }, 50);
     }
 
     async function waitForAllImagesToLoad() {
         const images = Array.from(document.images);
-        const timeoutPromise = new Promise((resolve) =>
-            setTimeout(resolve, 10000)
-        ); // 10 seconds timeout
-
-        await Promise.race([
-            Promise.all(
-                images.map((img) => {
-                    if (img.complete) {
-                        return checkImageStability(img);
-                    }
-                    return new Promise((resolve) => {
-                        img.onload = () =>
-                            checkImageStability(img).then(resolve);
-                        img.onerror = resolve;
-                    });
-                })
-            ),
-            timeoutPromise,
-        ]);
+        await wait_for_all_images_to_be_loaded(images);
     }
 
     function checkImageStability(img) {
@@ -1219,10 +1217,9 @@
                             );
                         }
                     }
-                 }
+                }
 
                 if (mutation.type === "attributes") {
-
                     if (mutation.attributeName === "src" && mutation.target.tagName === "IMG") {
                         newImages.push(mutation.target);
                     } else if (mutation.attributeName === "class" && (mutation.target.tagName === "IMG" || mutation.target.querySelectorAll)){
@@ -1243,6 +1240,7 @@
             if (newImages.length != 0) {
                 //deduplicate images
                 newImages = newImages.filter((img, index) => newImages.indexOf(img) === index);
+                messagebox({ txt: "Processing new image(s)", id: mainMessageBoxID, delay: 3000 });
                 await waitForAllImagesToLoad();
                 //const screenshotUrl = await getScreenshot();
                 const screenshotUrl = null;
