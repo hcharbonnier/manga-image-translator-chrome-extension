@@ -6,7 +6,7 @@
     let observer;
     let imagesToCapture = [];
     let imagesCaptured = [];
-    let capturedImagedTranslated = [];
+    let translatedCapturedImages = [];
 
     function disableKeyboard() {
         if (!keyboardDisabled) {
@@ -126,7 +126,7 @@
                         img.setAttribute("imagetranslated", "true");
                         img.setAttribute("sourceURL", img.src);
                         img.setAttribute("translatedURL", objectUrl);
-                        capturedImagedTranslated.push({img: img, objectUrl: objectUrl});
+                        translatedCapturedImages.push({img: img, objectUrl: objectUrl});
                         for (const cacheKey of cacheKeys)
                             storeBlobInCache(imageBlob, cacheKey);
                         //delete cacheKey from storage after 2s, but don't wait for it to finish
@@ -1243,13 +1243,13 @@
 
     async function imageReplacerWorker() {
         setInterval(async () => {
-            if (capturedImagedTranslated.length === 0) {
+            if (translatedCapturedImages.length === 0) {
                 return;
             }
             if (quickSettings.capture && imagesToCapture.length != 0) {
                 return;
             }
-            const {img, objectUrl} = capturedImagedTranslated.shift();
+            const {img, objectUrl} = translatedCapturedImages.shift();
             updateImageSource(img, objectUrl);
             updateImageSourceSet(img, objectUrl);
         }, 10);
