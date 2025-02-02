@@ -94,8 +94,18 @@ function restoreOptions() {
 // Purge cache
 function purgeCache() {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    updateRefreshIconVisibility();
-    chrome.tabs.sendMessage(tabs[0].id, { type: 'purgeCache' });
+      updateRefreshIconVisibility();
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'purgeCache' }, (response) => {
+          if (chrome.runtime.lastError) {
+              console.error("Error sending message:", chrome.runtime.lastError);
+          } else {
+              const purgeCacheButton = document.getElementById('purgeCache');
+              const successMessage = document.createElement('span');
+              successMessage.textContent = 'Cache purged successfully!';
+              successMessage.style.color = 'green';
+              purgeCacheButton.replaceWith(successMessage);
+          }
+      });
   });
 }
 

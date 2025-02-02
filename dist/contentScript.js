@@ -1259,18 +1259,18 @@
     }
 
     chrome.runtime.onMessage.addListener(
-        async (message, sender, sendResponse) => {
+        (message, sender, sendResponse) => {
             if (message.type === "purgeCache") {
-                caches.delete("my-cache-manga-translate").then((success) => {
+                (async () => {
+                    const success = await caches.delete("my-cache-manga-translate");
                     if (success) {
-                        console.log("Cache purged successfully");
+                        const res =  await sendMessageandWait("removeAllProcessingKeys", {});
+                        sendResponse("Cache purged");
                     } else {
-                        console.log("Cache purge failed");
-                        caches.keys().then((keys) => {
-                        });
+                        sendResponse("Cache purge failed");
                     }
-                    sendMessage("removeAllProcessingKeys", {});
-                });
+                })();
+                return true; // Keep the message channel open for sendResponse
             }
         }
     );
