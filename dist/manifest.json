@@ -12,7 +12,8 @@
       "tabs",
       "scripting",
       "webNavigation",
-      "activeTab"
+      "activeTab",
+      "contextMenus"
     ],
     "background": {
       "service_worker": "background.js"

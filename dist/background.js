@@ -644,3 +644,18 @@ chrome.runtime.onConnect.addListener((port) => {
         console.log("Port disconnected:", port.name);
     });
 });
+
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.contextMenus.create({
+        id: "translateImage",
+        title: "Translate image...",
+        contexts: ["image"] // Show on all elements
+    });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId === "translateImage") {
+        chrome.tabs.sendMessage(tab.id, { type: "forceTranslate", data: info.srcUrl });
+    }
+});
+

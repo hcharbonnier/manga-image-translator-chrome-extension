@@ -1321,6 +1321,26 @@
 
     chrome.runtime.onMessage.addListener(
         (message, sender, sendResponse) => {
+            if (message.type === "forceTranslate") {
+                let imgsrc=message.data
+                const img = document.querySelector(`img[src="${imgsrc}"]`);
+                if (imgsrc.startsWith("http")) {
+                    console.log("Forcing translation of image:", imgsrc);
+                    
+                    if (img) {
+                        console.log("Forcing translation of image:", imgsrc);
+                        translateImage(img, null);
+                    } else {
+                        console.error("Image not found:", imgsrc);
+                    }
+                } else {
+                    messagebox({ txt: "Image source is not a valid URL!", img: img , delay: 3000 });
+                    console.error("Image source is not a valid URL:", imgsrc);
+                }
+                //forceTranslate
+                console.log("Forcing translation of all images");
+                console.log(message);
+            }
             if (message.type === "purgeCache") {
                 (async () => {
                     const success = await caches.delete("my-cache-manga-translate");
