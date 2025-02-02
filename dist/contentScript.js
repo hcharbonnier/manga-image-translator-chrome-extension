@@ -1,5 +1,3 @@
-// content script
-
 (async () => {
     let port = chrome.runtime.connect({ name: "MangaTranslator" });
 
@@ -12,11 +10,10 @@
         setTimeout(() => {
             port = chrome.runtime.connect({ name: "mainConnection" });
             console.log("Reconnected successfully!");
-        }, 500); // Wait 1 second before retrying
+        }, 500); // Wait 0.5 second before retrying
     }
 
     function sendMessage(type, data) {
-        console.log("Sending message:", type, data);
         port.postMessage({ type, data });
     }
 
@@ -28,11 +25,7 @@
             }
 
             function handleResponse(response) {
-                // console.log("Response received:", response);
-                // console.log("Response type:", response.type);
                 if (response.type === type + "_response") {
-                    // Utilise un type unique pour filtrer les réponses
-                    // console.log("Response data:", response.data);
                     port.onMessage.removeListener(handleResponse); // Nettoie le listener
                     resolve(response.data);
                 }
@@ -54,7 +47,6 @@
     port.onMessage.addListener(async (message) => {
         switch (message.type) {
             case "translationResult":
-                console.log("Translation result received:", message.data);
                 const originalSrc = message.data.originalSrc;
                 const cacheKeys = message.data.cacheKeys;
                 const startTime = Date.now();
@@ -97,11 +89,8 @@
                     const objectUrl = URL.createObjectURL(imageBlob);
                     let list_src = document.querySelectorAll(`img[src="${originalSrc}"]`);
                     list_original_src = document.querySelectorAll(`img[data-original-src="${originalSrc}"]`);
-                    console.log("FF_list_src:", list_src);
-                    console.log("FF_list_original_src:", list_original_src);
 
                     all_images = document.querySelectorAll("img");
-                    console.log("FF_all_images:", all_images);
                     //real_image contient l'image réelle, pas le placeholder
                     real_image = list_original_src.length > 0 ? list_original_src : list_src;
                     img = real_image[0];
@@ -139,22 +128,15 @@
                     message_txt = `Position in queue: ${message_txt}`;
                 }
                 
-                //if (imgSpinner) {
-                    messagebox({
-                        txt: message_txt,
-                        img: imgSpinner,
-                        id: imgSpinner.src,
-                    });
-                // } else {
-                //     console.log(
-                //         "Image not found, can't update messagebox, txt,id,img:",
-                //         message_txt, message.data.originalSrc, imgSpinner
-                //     );
-                // }
+                messagebox({
+                    txt: message_txt,
+                    img: imgSpinner,
+                    id: imgSpinner.src,
+                });
                 break;
 
             default:
-                console.log("Unknown message typea:", message.type);
+                console.log("Unknown message type:", message.type);
         }
     });
 
@@ -188,8 +170,8 @@
             img: image,
             id: image.src,
         });
-        // Placeholder for image translation logic
-        const rect = image.getBoundingClientRect(); // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
+        // Get the bounding rectangle of the image. Useful to detect if the image is visible or not
+        const rect = image.getBoundingClientRect();
         // Store the original src in a data attribute
         image.dataset.originalSrc = image.src;
         let imgBlob;
@@ -208,12 +190,7 @@
                 ? { found: false }
                 : await checkCacheForImage(cacheKeys);
 
-        //deleteMessagebox(image.src); // Ensure spinner is hidden on error
-
         if (cache.found) {
-            // console.log(cache);
-            console.log("Found in cache");
-
             // Convert base64 to blob URL and use it
             messagebox({
                 txt: "Getting from cache",
@@ -249,7 +226,6 @@
             });
 
             try {
-                console.log("cacheKeys:", cacheKeys);
                 submitImage(image, imgBlob, cacheKeys);
             } catch (error) {
                 console.error("Error:", error);
@@ -259,7 +235,6 @@
 
     async function getImageBlob(img, screenshotUrl = null) {
         if (quickSettings.capture) {
-            console.log("Capture enabled");
             return (blob = await captureFullImage(img));
         }
 
@@ -418,10 +393,8 @@
 
     async function captureImage(img, screenshotUrl) {
         try {
-            console.log("Screenshot URL:", screenshotUrl);
             const rect = img.getBoundingClientRect();
             const devicePixelRatio = window.devicePixelRatio || 1;
-            console.log("Device pixel ratio:", devicePixelRatio);
 
             // Clamp coordinates to viewport
             const x = Math.max(0, rect.left);
@@ -430,7 +403,6 @@
             const maxBottom = Math.min(rect.bottom, window.innerHeight);
             const visibleWidth = maxRight - x;
             const visibleHeight = maxBottom - y;
-            console.log("Visible width:", visibleWidth);
 
             const image = new Image();
             image.src = screenshotUrl;
@@ -482,7 +454,6 @@
     }
 
     async function captureFullImage(img) {
-        console.log("Starting captureFullImage for:", img.src);
         disableScrolling();
         const rect = img.getBoundingClientRect();
 
@@ -506,23 +477,19 @@
 
         await waitUntilScrollCompletes(wantToScroll);
 
-        console.log("Starting capture loop");
         while (capturedHeight < totalHeight) {
-            console.log(`Capturing screenshot at height: ${capturedHeight}`);
 
             hideDiv(pageMaskID);
             hideDiv(messageBoxID);
 
             // Wait 50ms after hiding the spinner
             await new Promise((resolve) => setTimeout(resolve, 50));
-            console.log("Getting screenshot");
             const screenshotUrl = await getScreenshot();
-            console.log("Got screenshot:", screenshotUrl);
 
             showDiv(pageMaskID);
             showDiv(messageBoxID);
 
-            // // Download the full screenshot
+            // Download the full screenshot
             const fullScreenshotBlob = await fetch(screenshotUrl).then((res) =>
                 res.blob()
             );
@@ -712,7 +679,6 @@
 
     // Function to check if an image should be translated
     function shouldTranslateImage(image) {
-        //showLoadingSpinner(image, 'Analyzing image');
 
         const min_pixel_count = 700000;
 
@@ -764,7 +730,6 @@
             element = element.parentElement;
         }
 
-        //hideLoadingSpinner(image);
         return true;
     }
 
@@ -779,10 +744,8 @@
                 if (image.src) {
                     if (shouldTranslateImage(image)) {
                         if (image.complete) {
-                            // console.log("DDa:" + image.src);
                             await translateImage(image, screenshotUrl);
                         } else {
-                            // console.log("DDb:" + image.src);
                             image.onload = async () => {
                                 await translateImage(image, screenshotUrl);
                             };
@@ -816,9 +779,7 @@
         }
     }
 
-    // { src: image.src ,  blob: imgBlob}
     async function generateCacheKeys({ src= null ,  blob=null} = {}) {
-        // console.log("Generating cache keys for input:", input);
 
         let cacheKeys = [];
         const settingsHash = await computeSettingsFingerprint(
@@ -861,7 +822,6 @@
             const cache = await caches.open("my-cache-manga-translate");
             const response = new Response(blob);
             await cache.put(cacheKey, response);
-            // console.log(`Blob stored in cache with key: ${cacheKey}`);
         } catch (error) {
             console.error("Error storing blob in cache:", error);
         }
@@ -873,10 +833,8 @@
             const response = await cache.match(cacheKey);
             if (response) {
                 const blob = await response.blob();
-                // console.log(`Blob retrieved from cache with key: ${cacheKey}`);
                 return blob;
             } else {
-                //console.log(`No cache entry found for key: ${cacheKey}`);
                 return null;
             }
         } catch (error) {
@@ -896,7 +854,6 @@
         mask.style.zIndex = "9999";
         mask.id = `mask-${Date.now()}`;
         document.body.appendChild(mask);
-        console.log("Page mask added: " + mask.id);
         return mask.id;
     }
 
@@ -905,7 +862,6 @@
         if (mask) {
             mask.remove();
         }
-        console.log("Page mask removed");
     }
 
     function disableScrollbar_old() {
@@ -995,7 +951,6 @@
         left = 0,
         id = `messagebox-${Date.now()}`,
     } = {}) {
-        console.log("Messagebox:", txt);
 
         if (img) {
             //look for the real image, not the placeholder
@@ -1007,26 +962,14 @@
             img=real_image[0];
 
             const rect = img.getBoundingClientRect();
-            // Check if the image is within the viewport
-            // if (
-            //     rect.bottom < 0 ||
-            //     rect.top > window.innerHeight ||
-            //     rect.right < 0 ||
-            //     rect.left > window.innerWidth
-            // ) {
-            //     return;
-            // } else {
             top = rect.top + window.scrollY; // Adjust top relative to the page
             left = rect.left + window.scrollX; // Adjust left relative to the page
-            console.log("messagebox top left:", top, left);
-            //}
         }
 
         // si le div existe déjà on met à jour le text
         let messageboxDiv = document.getElementById(id);
 
         if (messageboxDiv) {
-            console.log("Messagebox txt, id, img:", txt, id, img);
             messageboxDiv.innerText = txt;
             return messageboxDiv.id;
         } else {
@@ -1068,7 +1011,6 @@
         if (messageboxDiv) {
             messageboxDiv.remove();
         }
-        console.log("Messagebox deleted:", id);
     }
 
     async function computeSettingsFingerprint(quickSettings, advancedSettings) {
@@ -1109,7 +1051,6 @@
             images = Array.from(images);
         }
         const promises = images.map((img) => {
-            console.log(`Waiting for image: ${img.src}`);
             return new Promise((resolve, reject) => {
                 if (img.complete) {
                     checkImageSize(0);
@@ -1171,11 +1112,9 @@
                 previousCount = images.length;
             }
         }, 50);
-        console.log("DOM stabilized");
     }
 
     async function waitForAllImagesToLoad() {
-        // console.log("waitForAllImagesToLoad() called");
         const images = Array.from(document.images);
         const timeoutPromise = new Promise((resolve) =>
             setTimeout(resolve, 10000)
@@ -1262,20 +1201,12 @@
         // Process existing images on page load
         const existingImages = document.querySelectorAll("img");
         if (existingImages.length != 0) {
-            console.log(
-                `Processing ${existingImages.length} existing images`
-            );
-            //const screenshotUrl = await getScreenshot();
             const screenshotUrl = null;
             await processNewImages(existingImages, screenshotUrl);
         }
 
-        // Wait for all images to load before sending the screenshot request
-        console.log("Existing images processed, starting MutationObserver");
-
         // Mutation observer to detect new images
         const observer = new MutationObserver(async (mutations) => {
-            console.log("Mutation detected");
             let newImages = [];
             for (const mutation of mutations) {
                 if (mutation.type === "childList") {
@@ -1301,31 +1232,21 @@
                         } else if (target.querySelectorAll) {
                             const images = target.querySelectorAll("img");
                             for (const img of images) {
-                                console.log("Image added to newImages:", img.src);
                                 newImages.push(img);
                             }
                         }
                     }
                 }                
             }
-            console.log("all mutation read");
 
             //Buggy with capture for now
             if (newImages.length != 0) {
-                console.log(
-                    `Detected ${newImages.length} new or modified images`
-                );
                 //deduplicate images
-                console.log("deduplicating images");
                 newImages = newImages.filter((img, index) => newImages.indexOf(img) === index);
-                console.log("images deduplicated");
-                console.log("New images:", newImages);
                 await waitForAllImagesToLoad();
-                console.log("All images loaded");
                 //const screenshotUrl = await getScreenshot();
                 const screenshotUrl = null;
                 await processNewImages(newImages, screenshotUrl);
-                console.log("New images processed");
             }
         });
 
@@ -1346,7 +1267,6 @@
                     } else {
                         console.log("Cache purge failed");
                         caches.keys().then((keys) => {
-                            console.log("Cache keys:", keys);
                         });
                     }
                     sendMessage("removeAllProcessingKeys", {});
