@@ -1,6 +1,31 @@
 (async () => {
     let mainMessageBoxID = "mainMessageBox";
+    let keyboardDisabled = false;
     let port = chrome.runtime.connect({ name: "MangaTranslator" });
+    let ignoreMutations = false;
+    let ignoreNextMutation = false;
+    let mainObserverStarted = false;
+    let observer;
+
+    function disableKeyboard() {
+        if (!keyboardDisabled) {
+            document.addEventListener("keydown", preventKeyAction);
+            keyboardDisabled = true;
+            console.log("Keyboard disabled.");
+        }
+    }
+
+    function enableKeyboard() {
+        if (keyboardDisabled) {
+            document.removeEventListener("keydown", preventKeyAction);
+            keyboardDisabled = false;
+            console.log("Keyboard enabled.");
+        }
+    }
+
+    function preventKeyAction(event) {
+        event.preventDefault();
+    }
 
     port.onDisconnect.addListener(() => {
         console.error("Connection lost! Retrying...");
@@ -458,6 +483,8 @@
 
     async function captureFullImage(img) {
         disableScrolling();
+        disableKeyboard();
+        disableScrollbar();
         const rect = img.getBoundingClientRect();
 
         const devicePixelRatio = window.devicePixelRatio || 1;
@@ -477,7 +504,6 @@
         // Scroll the image to the top of the screen if possible
         const wantToScroll = rect.top + window.scrollY;
         window.scrollTo(0, wantToScroll);
-
         await waitUntilScrollCompletes(wantToScroll);
 
         while (capturedHeight < totalHeight) {
@@ -558,6 +584,8 @@
         }
 
         restoreScrolling();
+        enableKeyboard();
+        enableScrollbar();
         removePageMask(pageMaskID);
         deleteMessagebox(messageBoxID);
 
@@ -761,7 +789,7 @@
                     }
                 }
 
-                window.scrollTo(0, 0);
+                //window.scrollTo(0, 0);
             }
         } else {
             const promises = images.map(async (image) => {
@@ -867,32 +895,30 @@
         }
     }
 
-    function disableScrollbar_old() {
-        // Store original overflow values
-        let originalStyles = {
-            originalOverflow: document.documentElement.style.overflow,
-            originalBodyOverflow: document.body.style.overflow,
-        };
-
-        // Allow scrolling but hide the scrollbar
-        document.documentElement.style.overflow = "auto";
-        document.body.style.overflow = "auto";
-
-        // Hide scrollbar for Chrome, Safari
-        let style = document.createElement("style");
-        style.id = "hide-scrollbar-style"; // Give it an ID so we can remove it later
+    function disableScrollbar() {
+        if (mainObserverStarted) observer.disconnect();
+        document.body.style.overflow = "hidden"; // Hide scrollbar
+        document.body.classList.add("hide-scrollbar");
+        const style = document.createElement("style");
         style.innerHTML = `
-            ::-webkit-scrollbar {
+            .hide-scrollbar::-webkit-scrollbar {
                 display: none;
             }
         `;
+        style.id = "hide-scrollbar-style";
         document.head.appendChild(style);
+        if (mainObserverStarted) startObserver();
+    }
 
-        // Hide scrollbar for Firefox
-        document.documentElement.style.scrollbarWidth = "none";
-        document.body.style.scrollbarWidth = "none";
-
-        return originalStyles;
+    function enableScrollbar() {
+        if (mainObserverStarted) observer.disconnect();
+        document.body.style.overflow = "";
+        document.body.classList.remove("hide-scrollbar");
+        const style = document.getElementById("hide-scrollbar-style");
+        if (style) {
+            style.remove();
+        }
+        if (mainObserverStarted) startObserver();
     }
 
     function preventScroll(event) {
@@ -1179,7 +1205,16 @@
             img.getBoundingClientRect().width > 0 // Not clipped out
         );
     }
-    
+
+    function startObserver() {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["src", "class","style", "hidden"],
+        });
+        mainObserverStarted = true;
+    }
 
     const domain = window.location.host;
     const { quickSettings, advancedSettings } = await getStorageData([
@@ -1204,7 +1239,12 @@
         }
 
         // Mutation observer to detect new images
-        const observer = new MutationObserver(async (mutations) => {
+        observer = new MutationObserver(async (mutations) => {
+            if (ignoreNextMutation) {
+                ignoreNextMutation = false;
+                return;
+            }
+            if (ignoreMutations) return;
             let newImages = [];
             for (const mutation of mutations) {
                 if (mutation.type === "childList") {
@@ -1248,12 +1288,7 @@
             }
         });
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ["src", "class","style", "hidden"],
-        });
+        startObserver();
     }
 
     chrome.runtime.onMessage.addListener(
