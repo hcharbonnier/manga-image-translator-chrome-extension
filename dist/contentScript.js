@@ -243,7 +243,7 @@
                     showDiv(messageboxID);
                 } catch (error) {
                     console.error("Error getting image blob:", error);
-                    deleteMessagebox
+                    deleteMessagebox(image.dataset.originalSrc);
                     return;
                 }
             }
@@ -270,7 +270,7 @@
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
             capturedImage = imagesCaptured[img.src];
-            imagesCaptured[img.src].undefined;
+            imagesCaptured[img.src]=undefined;
 
             return capturedImage;
         }
@@ -1055,7 +1055,7 @@
             messageboxes.forEach((messagebox) => {
                 messagebox.remove();
             });
-            console.errror("All messageboxes deleted");
+            console.error("All messageboxes deleted");
             return;
         }
 
