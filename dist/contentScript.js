@@ -991,15 +991,14 @@
     } = {}) {
 
         if (img) {
-            console.log("img:", img);
             //look for the real image, not the placeholder
-            let list_src = document.querySelectorAll(`img[src="${img.src}"]`);
-            list_original_src = document.querySelectorAll(`img[data-original-src="${img.dataset.originalSrc}"]`);
+            const list_src = document.querySelectorAll(`img[src="${img.src}"]`);
+            const list_original_src = document.querySelectorAll(`img[data-original-src="${img.dataset.originalSrc}"]`);
 
             console.log("list_src:", list_src);
             console.log("list_original_src:", list_original_src);
             //real_image contient l'image réelle, pas le placeholder
-            real_image = list_original_src.length > 0 ? list_original_src : list_src;
+            const real_image = list_original_src.length > 0 ? list_original_src : list_src;
             img=real_image[0];
             let rect;
             try {
@@ -1089,7 +1088,7 @@
             );
             return res;
         } catch (error) {
-            deleteMessagebox(image.dataset.originalSrc);
+            deleteMessagebox(img.dataset.originalSrc);
             return;
         }
     }
