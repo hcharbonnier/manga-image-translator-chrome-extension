@@ -1,15 +1,3 @@
-body.options-page {
-  width: 350px;
-  transform: scale(0.8);
-  transform-origin: 0 0;
-}
 .full-width {
     width: 100%;
   }
-.refresh-icon {
-  width: 32px; /* Adjust the size as needed */
-  height: 32px; /* Adjust the size as needed */
-  background-image: url('icons/refresh.png');
-  background-size: cover;
-  background-position: center;
-}
