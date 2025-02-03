@@ -167,6 +167,93 @@
         }
     });
 
+    function getImageCoveringPixels(imgElement, side) {
+        const rect = imgElement.getBoundingClientRect();
+        const imgHeight = rect.height;
+        const imgWidth = rect.width;
+    
+        switch (side) {
+            case "top":
+                if (rect.top >= 0) return 0; // Fully visible
+                return Math.min(-rect.top, imgHeight); // Partially visible, return hidden pixels within viewport
+    
+            case "bottom":
+                if (rect.bottom <= window.innerHeight) return 0; // Fully visible
+                return Math.min(rect.bottom - window.innerHeight, imgHeight); // Partially visible, return hidden pixels within viewport
+    
+            case "left":
+                if (rect.left >= 0) return 0; // Fully visible
+                return Math.min(-rect.left, imgWidth); // Partially visible, return hidden pixels within viewport
+    
+            case "right":
+                if (rect.right <= window.innerWidth) return 0; // Fully visible
+                return Math.min(rect.right - window.innerWidth, imgWidth); // Partially visible, return hidden pixels within viewport
+    
+            default:
+                throw new Error("Invalid side parameter. Use 'top', 'bottom', 'left', or 'right'.");
+        }
+    }
+
+    function getHiddenPixels(img, side) {
+        if (!img || !["top", "bottom", "left", "right"].includes(side)) return null;
+    
+        const rect = img.getBoundingClientRect();
+        const viewport = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+    
+        const step = 1; // Step size for scanning pixels
+        let hiddenPixels = 0;
+    
+        // Function to check if a point is within the viewport
+        function isInViewport(x, y) {
+            return x >= 0 && x < viewport.width && y >= 0 && y < viewport.height;
+        }
+    
+        // Function to check if a point is covered
+        function isCovered(x, y) {
+            if (!isInViewport(x, y)) return false; // Ignore out-of-viewport pixels
+            const element = document.elementFromPoint(x, y);
+            return element && element !== img && !img.contains(element);
+        }
+    
+        if (side === "top") {
+            for (let y = rect.top; y < rect.bottom; y += step) {
+                if (isInViewport(rect.left + rect.width / 2, y) && isCovered(rect.left + rect.width / 2, y)) {
+                    hiddenPixels++;
+                } else {
+                    break;
+                }
+            }
+        } else if (side === "bottom") {
+            for (let y = rect.bottom; y > rect.top; y -= step) {
+                if (isInViewport(rect.left + rect.width / 2, y) && isCovered(rect.left + rect.width / 2, y)) {
+                    hiddenPixels++;
+                } else {
+                    break;
+                }
+            }
+        } else if (side === "left") {
+            for (let x = rect.left; x < rect.right; x += step) {
+                if (isInViewport(x, rect.top + rect.height / 2) && isCovered(x, rect.top + rect.height / 2)) {
+                    hiddenPixels++;
+                } else {
+                    break;
+                }
+            }
+        } else if (side === "right") {
+            for (let x = rect.right; x > rect.left; x -= step) {
+                if (isInViewport(x, rect.top + rect.height / 2) && isCovered(x, rect.top + rect.height / 2)) {
+                    hiddenPixels++;
+                } else {
+                    break;
+                }
+            }
+        }
+        return hiddenPixels;
+    }
+
     function getStorageData(keys) {
         return new Promise((resolve, reject) => {
             chrome.runtime.sendMessage(
@@ -428,18 +515,40 @@
         }
     }
 
-    async function captureImage(img, screenshotUrl) {
+    async function captureImage(img, screenshotUrl, crop_px = 0, crop_side = false) {
         try {
             const rect = img.getBoundingClientRect();
             const devicePixelRatio = window.devicePixelRatio || 1;
 
             // Clamp coordinates to viewport
-            const x = Math.max(0, rect.left);
-            const y = Math.max(0, rect.top);
-            const maxRight = Math.min(rect.right, window.innerWidth);
-            const maxBottom = Math.min(rect.bottom, window.innerHeight);
-            const visibleWidth = maxRight - x;
-            const visibleHeight = maxBottom - y;
+            let x = Math.max(0, rect.left);
+            let y = Math.max(0, rect.top);
+            let maxRight = Math.min(rect.right, window.innerWidth);
+            let maxBottom = Math.min(rect.bottom, window.innerHeight);
+            let visibleWidth = maxRight - x;
+            let visibleHeight = maxBottom - y;
+
+            // Adjust coordinates based on crop_px and crop_side
+            if (crop_px > 0) {
+                switch (crop_side) {
+                    case "top":
+                        y += crop_px;
+                        visibleHeight -= crop_px;
+                        break;
+                    case "bottom":
+                        visibleHeight -= crop_px;
+                        break;
+                    case "left":
+                        x += crop_px;
+                        visibleWidth -= crop_px;
+                        break;
+                    case "right":
+                        visibleWidth -= crop_px;
+                        break;
+                    default:
+                        throw new Error("Invalid crop_side parameter. Use 'top', 'bottom', 'left', or 'right'.");
+                }
+            }
 
             const image = new Image();
             image.src = screenshotUrl;
@@ -491,29 +600,36 @@
     }
 
     async function captureFullImageWorker() {
-        setInterval(async() => {
+        setInterval(async () => {
             let img;
+            // Check if there are any images to capture
             if (imagesToCapture.length === 0) {
                 return;
             }
 
+            // Get the next image to capture
             img = imagesToCapture.shift();
             console.log("Capturing image:", img.src);
 
+            // Disable scrolling, keyboard, and scrollbar
             disableScrolling();
             disableKeyboard();
-            disableScrollbar();
-            const rect = img.getBoundingClientRect();
+            //disableScrollbar();
 
+            const rect = img.getBoundingClientRect();
             const devicePixelRatio = window.devicePixelRatio || 1;
             const totalHeight = rect.height;
             const totalWidth = rect.width;
             let capturedHeight = 0;
+
+            // Create a canvas to draw the captured image
             const canvas = document.createElement("canvas");
             canvas.width = totalWidth * devicePixelRatio;
             canvas.height = totalHeight * devicePixelRatio;
             const ctx = canvas.getContext("2d");
+            let topHiddenPixels;
 
+            // Add a page mask and message box
             const pageMaskID = addPageMask();
             const messageBoxID = messagebox({
                 txt: "Capturing images...",
@@ -522,9 +638,17 @@
             // Scroll the image to the top of the screen if possible
             const wantToScroll = rect.top + window.scrollY;
             window.scrollTo(0, wantToScroll);
+            console.log("AAA_Want to scroll:", wantToScroll);
+            topHiddenPixels = getHiddenPixels(img, "top");
             await waitUntilScrollCompletes(wantToScroll);
+            await new Promise((resolve) => setTimeout(resolve, 200));
 
+            // If image is partially hidden at the top, scroll to reveal the top part (ie: hidden by a menu)
+
+            console.log("AAA_Capturing image:", img.src);
+            // Capture the image in parts
             while (capturedHeight < totalHeight) {
+                console.log("AAA_Continuing, captured not finished for image:", img.src);
 
                 hideDiv(pageMaskID);
                 hideDiv(messageBoxID);
@@ -553,13 +677,11 @@
                     0,
                     0,
                     totalWidth * devicePixelRatio,
-                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
-                        devicePixelRatio,
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) * devicePixelRatio,
                     0,
                     capturedHeight * devicePixelRatio,
                     totalWidth * devicePixelRatio,
-                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
-                        devicePixelRatio
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) * devicePixelRatio
                 );
 
                 capturedHeight += partialHeightPx; // Replaced window.innerHeight
@@ -568,8 +690,7 @@
                 } else {
                     await new Promise((resolve) => setTimeout(resolve, 501)); // Wait for scroll to complete & Respect Chrome rate limit
                     // Crop the part of the image which is already on the previous partial screenshot
-                    const remainingHeight =
-                        totalHeight - capturedHeight + partialHeightPx;
+                    const remainingHeight = totalHeight - capturedHeight + partialHeightPx;
                     ctx.drawImage(
                         image,
                         0,
@@ -577,8 +698,7 @@
                         totalWidth * devicePixelRatio,
                         remainingHeight * devicePixelRatio,
                         0,
-                        capturedHeight * devicePixelRatio -
-                            remainingHeight * devicePixelRatio,
+                        capturedHeight * devicePixelRatio - remainingHeight * devicePixelRatio,
                         totalWidth * devicePixelRatio,
                         remainingHeight * devicePixelRatio
                     );
@@ -596,12 +716,14 @@
                 }
             }
 
+            // Restore scrolling, keyboard, and scrollbar
             restoreScrolling();
             enableKeyboard();
             enableScrollbar();
             removePageMask(pageMaskID);
             deleteMessagebox(messageBoxID);
 
+            // Store the captured image
             imagesCaptured[img.src] = new Promise((resolve) => {
                 canvas.toBlob(resolve, "image/jpeg", 1.0);
             });
@@ -995,8 +1117,8 @@
             const list_src = document.querySelectorAll(`img[src="${img.src}"]`);
             const list_original_src = document.querySelectorAll(`img[data-original-src="${img.dataset.originalSrc}"]`);
 
-            console.log("list_src:", list_src);
-            console.log("list_original_src:", list_original_src);
+            // console.log("list_src:", list_src);
+            // console.log("list_original_src:", list_original_src);
             //real_image contient l'image réelle, pas le placeholder
             const real_image = list_original_src.length > 0 ? list_original_src : list_src;
             img=real_image[0];
