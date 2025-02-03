@@ -515,8 +515,8 @@
         }
     }
 
-    async function captureImage(img, screenshotUrl, crop_px = 0, crop_side = false) {
-        try {
+    async function captureImage({img, screenshotUrl, crop_px = 0, crop_side = false} = {}) {
+        //try {
             const rect = img.getBoundingClientRect();
             const devicePixelRatio = window.devicePixelRatio || 1;
 
@@ -593,19 +593,28 @@
             return new Promise((resolve) => {
                 croppedCanvas.toBlob(resolve, "image/jpeg", 1.0);
             });
-        } catch (error) {
-            console.error("Error capturing image:", error);
-            return Promise.reject(error);
-        }
+        // } catch (error) {
+        //     console.error("Error capturing image:", error);
+        //     return Promise.reject(error);
+        // }
     }
 
     async function captureFullImageWorker() {
+        let isCapturing = false; // Flag to prevent overlapping executions
+
         setInterval(async () => {
+            if (isCapturing) return; // Exit if already capturing
+            isCapturing = true; // Set the flag to indicate capturing is in progress
+
             let img;
             // Check if there are any images to capture
             if (imagesToCapture.length === 0) {
+                isCapturing = false; // Reset the flag
                 return;
             }
+
+            waitForDomToStabilize(); // Wait for the DOM to stabilize
+            waitForAllImagesToLoad(); // Wait for all images to load
 
             // Get the next image to capture
             img = imagesToCapture.shift();
@@ -639,20 +648,37 @@
             const wantToScroll = rect.top + window.scrollY;
             window.scrollTo(0, wantToScroll);
             console.log("AAA_Want to scroll:", wantToScroll);
-            topHiddenPixels = getHiddenPixels(img, "top");
+            
             await waitUntilScrollCompletes(wantToScroll);
             await new Promise((resolve) => setTimeout(resolve, 200));
 
-            // If image is partially hidden at the top, scroll to reveal the top part (ie: hidden by a menu)
-
             console.log("AAA_Capturing image:", img.src);
             // Capture the image in parts
+            firstPartial=true;
             while (capturedHeight < totalHeight) {
                 console.log("AAA_Continuing, captured not finished for image:", img.src);
 
                 hideDiv(pageMaskID);
                 hideDiv(messageBoxID);
 
+                // If image is partially hidden at the top, scroll to reveal the top part (ie: hidden by a menu)
+                topHiddenPixels = getHiddenPixels(img, "top");
+                if (topHiddenPixels > 0) {
+                    console.log("AAA_Partially hidden at the top:", topHiddenPixels, "pixels");
+                    const adaptedWantToScroll = wantToScroll - topHiddenPixels;
+                    window.scrollTo(0, adaptedWantToScroll);
+                    console.log("AAA_Adapted want to scroll:", adaptedWantToScroll);
+                    await waitUntilScrollCompletes(adaptedWantToScroll);
+                    await new Promise((resolve) => setTimeout(resolve, 200));
+
+                    if (firstPartial) {
+                        firstPartial=false;
+                        // we don't want to crop the 1st partial image as it will be the top of the image
+                        topHiddenPixels = 0;
+                    }
+                } else 
+                    console.log("AAA_Not hidden at the top");
+                    
                 // Wait 50ms after hiding the spinner
                 await new Promise((resolve) => setTimeout(resolve, 50));
                 const screenshotUrl = await getScreenshot();
@@ -660,7 +686,7 @@
                 showDiv(pageMaskID);
                 showDiv(messageBoxID);
 
-                const partialBlob = await captureImage(img, screenshotUrl);
+                const partialBlob = await captureImage({ img: img, screenshotUrl: screenshotUrl, crop_px: topHiddenPixels, crop_side: "top" });
                 const image = new Image();
                 image.src = URL.createObjectURL(partialBlob);
                 await new Promise((resolve) => {
@@ -684,7 +710,7 @@
                     Math.min(totalHeight - capturedHeight, window.innerHeight) * devicePixelRatio
                 );
 
-                capturedHeight += partialHeightPx; // Replaced window.innerHeight
+                capturedHeight += partialHeightPx; // Correctly update capturedHeight
                 if (capturedHeight < totalHeight) {
                     window.scrollBy(0, window.innerHeight);
                 } else {
@@ -727,6 +753,8 @@
             imagesCaptured[img.src] = new Promise((resolve) => {
                 canvas.toBlob(resolve, "image/jpeg", 1.0);
             });
+
+            isCapturing = false; // Reset the flag
         }, 100);
     }
 
@@ -849,18 +877,18 @@
 
 
         if (! isVisible(image)) { //check hidden tips in style, etc..
-            console.log("Image is not visible");
+            // console.log("Image is not visible");
             return false;
         }
         if (image.clientWidth === 0 || image.clientHeight === 0) {
-            console.log("Image has 0 width or height");
+            // console.log("Image has 0 width or height");
             return false;
         }
         if (nb_pixels < min_pixel_count) {
-            console.log("Image is too small:" + nb_pixels + " pixels");
+            // console.log("Image is too small:" + nb_pixels + " pixels");
             return false;
         } else {
-            console.log("Image size (" + image.src + "):" + nb_pixels);
+            // console.log("Image size (" + image.src + "):" + nb_pixels);
         }
         if (image.src.startsWith("chrome://")) {
             return false;
@@ -869,7 +897,7 @@
             image.hasAttribute("imagetranslated") &&
             image.getAttribute("translatedURL") === image.src
         ) {
-            console.log("Image has already been translated");
+            // console.log("Image has already been translated");
             return false;
         }
         if (
@@ -885,7 +913,7 @@
         let element = image;
         while (element) {
             if (getComputedStyle(element).display === "none") {
-                console.log("Image or parent has display: none");
+                // console.log("Image or parent has display: none");
                 return false;
             }
             element = element.parentElement;
@@ -912,10 +940,10 @@
                             };
                         }
                     } else {
-                        console.log(
-                            "Image does not meet the criteria for translation:" +
-                                image.src
-                        );
+                        // console.log(
+                        //     "Image does not meet the criteria for translation:" +
+                        //         image.src
+                        // );
                     }
                 }
 
@@ -1261,7 +1289,7 @@
                 }
 
                 function checkImageSize(i) {
-                    console.log(`Checking image size: ${img.src}`);
+                    // console.log(`Checking image size: ${img.src}`);
                     if (i > 6) {
                         console.log(`Failed to check image size: ${img.src}`);
                         resolve();
