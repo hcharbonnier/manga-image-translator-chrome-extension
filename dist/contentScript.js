@@ -95,7 +95,8 @@
                 }
 
                 async function retryFetchImageResult() {
-                    const timeout = advancedSettings.processing_cache_ttl * 1000;
+                    const timeout =
+                        advancedSettings.processing_cache_ttl * 1000;
                     const interval = 500;
                     const endTime = startTime + timeout;
 
@@ -104,29 +105,40 @@
                             const result = await fetchImageResult();
                             return result;
                         } catch (error) {
-                            await new Promise((resolve) => setTimeout(resolve, interval));
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, interval)
+                            );
                         }
                     }
                     throw new Error("Timeout: Image result not found");
                 }
 
                 try {
-
                     const result = await retryFetchImageResult();
                     const imageBlob = await (await fetch(result)).blob();
                     const objectUrl = URL.createObjectURL(imageBlob);
-                    let list_src = document.querySelectorAll(`img[src="${originalSrc}"]`);
-                    list_original_src = document.querySelectorAll(`img[data-original-src="${originalSrc}"]`);
+                    let list_src = document.querySelectorAll(
+                        `img[src="${originalSrc}"]`
+                    );
+                    list_original_src = document.querySelectorAll(
+                        `img[data-original-src="${originalSrc}"]`
+                    );
 
                     all_images = document.querySelectorAll("img");
                     //real_image contient l'image réelle, pas le placeholder
-                    real_image = list_original_src.length > 0 ? list_original_src : list_src;
+                    real_image =
+                        list_original_src.length > 0
+                            ? list_original_src
+                            : list_src;
                     img = real_image[0];
                     if (img) {
                         img.setAttribute("imagetranslated", "true");
                         img.setAttribute("sourceURL", img.src);
                         img.setAttribute("translatedURL", objectUrl);
-                        translatedCapturedImages.push({img: img, objectUrl: objectUrl});
+                        translatedCapturedImages.push({
+                            img: img,
+                            objectUrl: objectUrl,
+                        });
                         for (const cacheKey of cacheKeys)
                             storeBlobInCache(imageBlob, cacheKey);
                         //delete cacheKey from storage after 2s, but don't wait for it to finish
@@ -154,7 +166,7 @@
                 if (!isNaN(parseInt(message_txt))) {
                     message_txt = `Position in queue: ${message_txt}`;
                 }
-                
+
                 messagebox({
                     txt: message_txt,
                     img: imgSpinner,
@@ -171,56 +183,64 @@
         const rect = imgElement.getBoundingClientRect();
         const imgHeight = rect.height;
         const imgWidth = rect.width;
-    
+
         switch (side) {
             case "top":
                 if (rect.top >= 0) return 0; // Fully visible
                 return Math.min(-rect.top, imgHeight); // Partially visible, return hidden pixels within viewport
-    
+
             case "bottom":
                 if (rect.bottom <= window.innerHeight) return 0; // Fully visible
                 return Math.min(rect.bottom - window.innerHeight, imgHeight); // Partially visible, return hidden pixels within viewport
-    
+
             case "left":
                 if (rect.left >= 0) return 0; // Fully visible
                 return Math.min(-rect.left, imgWidth); // Partially visible, return hidden pixels within viewport
-    
+
             case "right":
                 if (rect.right <= window.innerWidth) return 0; // Fully visible
                 return Math.min(rect.right - window.innerWidth, imgWidth); // Partially visible, return hidden pixels within viewport
-    
+
             default:
-                throw new Error("Invalid side parameter. Use 'top', 'bottom', 'left', or 'right'.");
+                throw new Error(
+                    "Invalid side parameter. Use 'top', 'bottom', 'left', or 'right'."
+                );
         }
     }
 
     function getHiddenPixels(img, side) {
-        if (!img || !["top", "bottom", "left", "right"].includes(side)) return null;
-    
+        if (!img || !["top", "bottom", "left", "right"].includes(side))
+            return null;
+
         const rect = img.getBoundingClientRect();
         const viewport = {
             width: window.innerWidth,
-            height: window.innerHeight
+            height: window.innerHeight,
         };
-    
+
         const step = 1; // Step size for scanning pixels
         let hiddenPixels = 0;
-    
+
         // Function to check if a point is within the viewport
         function isInViewport(x, y) {
-            return x >= 0 && x < viewport.width && y >= 0 && y < viewport.height;
+            return (
+                x >= 0 && x < viewport.width && y >= 0 && y < viewport.height
+            );
         }
-    
+
         // Function to check if a point is covered
         function isCovered(x, y) {
             if (!isInViewport(x, y)) return false; // Ignore out-of-viewport pixels
             const element = document.elementFromPoint(x, y);
             return element && element !== img && !img.contains(element);
         }
-    
+
         if (side === "top") {
             for (let y = rect.top; y < rect.bottom; y += step) {
-                if (isInViewport(rect.left + rect.width / 2, y) && isCovered(rect.left + rect.width / 2, y)) {
+                if (
+                    isInViewport(rect.left + rect.width / 2, y) &&
+                    isCovered(rect.left + rect.width / 2, y)
+                ) {
                     hiddenPixels++;
                 } else {
                     break;
@@ -228,7 +248,10 @@
             }
         } else if (side === "bottom") {
             for (let y = rect.bottom; y > rect.top; y -= step) {
-                if (isInViewport(rect.left + rect.width / 2, y) && isCovered(rect.left + rect.width / 2, y)) {
+                if (
+                    isInViewport(rect.left + rect.width / 2, y) &&
+                    isCovered(rect.left + rect.width / 2, y)
+                ) {
                     hiddenPixels++;
                 } else {
                     break;
@@ -236,7 +259,10 @@
             }
         } else if (side === "left") {
             for (let x = rect.left; x < rect.right; x += step) {
-                if (isInViewport(x, rect.top + rect.height / 2) && isCovered(x, rect.top + rect.height / 2)) {
+                if (
+                    isInViewport(x, rect.top + rect.height / 2) &&
+                    isCovered(x, rect.top + rect.height / 2)
+                ) {
                     hiddenPixels++;
                 } else {
                     break;
@@ -244,7 +270,10 @@
             }
         } else if (side === "right") {
             for (let x = rect.right; x > rect.left; x -= step) {
-                if (isInViewport(x, rect.top + rect.height / 2) && isCovered(x, rect.top + rect.height / 2)) {
+                if (
+                    isInViewport(x, rect.top + rect.height / 2) &&
+                    isCovered(x, rect.top + rect.height / 2)
+                ) {
                     hiddenPixels++;
                 } else {
                     break;
@@ -289,20 +318,24 @@
         // Store the original src in a data attribute
         image.dataset.originalSrc = image.src;
         let imgBlob;
-        let cache = { found: false }
+        let cache = { found: false };
         let cacheKeys;
 
         if (quickSettings.capture) {
-            cacheKeys = advancedSettings.disable_cache ? null : await generateCacheKeys({ src: image.dataset.originalSrc });
+            cacheKeys = advancedSettings.disable_cache
+                ? null
+                : await generateCacheKeys({ src: image.dataset.originalSrc });
         } else {
             imgBlob = await getImageBlob(image, screenshotUrl);
-            cacheKeys = advancedSettings.disable_cache ? null : await generateCacheKeys({ src: image.src ,  blob: imgBlob});
+            cacheKeys = advancedSettings.disable_cache
+                ? null
+                : await generateCacheKeys({ src: image.src, blob: imgBlob });
         }
 
         //check if one of the cache keys is in the cache
         cache = advancedSettings.disable_cache
-                ? { found: false }
-                : await checkCacheForImage(cacheKeys);
+            ? { found: false }
+            : await checkCacheForImage(cacheKeys);
 
         if (cache.found) {
             // Convert base64 to blob URL and use it
@@ -334,7 +367,7 @@
                     return;
                 }
             }
-            
+
             messagebox({
                 txt: "Processing...",
                 img: image,
@@ -351,13 +384,13 @@
 
     async function getImageBlob(img, screenshotUrl = null) {
         if (quickSettings.capture) {
-            let capturedImage
+            let capturedImage;
             imagesToCapture.push(img);
             while (imagesCaptured[img.src] === undefined) {
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
             capturedImage = imagesCaptured[img.src];
-            imagesCaptured[img.src]=undefined;
+            imagesCaptured[img.src] = undefined;
 
             return capturedImage;
         }
@@ -515,84 +548,91 @@
         }
     }
 
-    async function captureImage({img, screenshotUrl, crop_px = 0, crop_side = false} = {}) {
+    async function captureImage({
+        img,
+        screenshotUrl,
+        crop_px = 0,
+        crop_side = false,
+    } = {}) {
         //try {
-            const rect = img.getBoundingClientRect();
-            const devicePixelRatio = window.devicePixelRatio || 1;
+        const rect = img.getBoundingClientRect();
+        const devicePixelRatio = window.devicePixelRatio || 1;
 
-            // Clamp coordinates to viewport
-            let x = Math.max(0, rect.left);
-            let y = Math.max(0, rect.top);
-            let maxRight = Math.min(rect.right, window.innerWidth);
-            let maxBottom = Math.min(rect.bottom, window.innerHeight);
-            let visibleWidth = maxRight - x;
-            let visibleHeight = maxBottom - y;
+        // Clamp coordinates to viewport
+        let x = Math.max(0, rect.left);
+        let y = Math.max(0, rect.top);
+        let maxRight = Math.min(rect.right, window.innerWidth);
+        let maxBottom = Math.min(rect.bottom, window.innerHeight);
+        let visibleWidth = maxRight - x;
+        let visibleHeight = maxBottom - y;
 
-            // Adjust coordinates based on crop_px and crop_side
-            if (crop_px > 0) {
-                switch (crop_side) {
-                    case "top":
-                        y += crop_px;
-                        visibleHeight -= crop_px;
-                        break;
-                    case "bottom":
-                        visibleHeight -= crop_px;
-                        break;
-                    case "left":
-                        x += crop_px;
-                        visibleWidth -= crop_px;
-                        break;
-                    case "right":
-                        visibleWidth -= crop_px;
-                        break;
-                    default:
-                        throw new Error("Invalid crop_side parameter. Use 'top', 'bottom', 'left', or 'right'.");
-                }
+        // Adjust coordinates based on crop_px and crop_side
+        if (crop_px > 0) {
+            switch (crop_side) {
+                case "top":
+                    y += crop_px;
+                    visibleHeight -= crop_px;
+                    break;
+                case "bottom":
+                    visibleHeight -= crop_px;
+                    break;
+                case "left":
+                    x += crop_px;
+                    visibleWidth -= crop_px;
+                    break;
+                case "right":
+                    visibleWidth -= crop_px;
+                    break;
+                default:
+                    throw new Error(
+                        "Invalid crop_side parameter. Use 'top', 'bottom', 'left', or 'right'."
+                    );
             }
+        }
 
-            const image = new Image();
-            image.src = screenshotUrl;
-            await new Promise((resolve, reject) => {
-                image.onload = resolve;
-                image.onerror = reject;
-            });
+        const image = new Image();
+        image.src = screenshotUrl;
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+        });
 
-            if (image.width === 0 || image.height === 0) {
-                throw new Error("Invalid image dimensions");
-            }
+        if (image.width === 0 || image.height === 0) {
+            throw new Error("Invalid image dimensions");
+        }
 
-            const canvas = document.createElement("canvas");
-            canvas.width = image.width;
-            canvas.height = image.height;
-            const ctx = canvas.getContext("2d");
-            ctx.scale(devicePixelRatio, devicePixelRatio);
-            ctx.drawImage(
-                image,
-                0,
-                0,
-                image.width / devicePixelRatio,
-                image.height / devicePixelRatio
-            );
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+        ctx.drawImage(
+            image,
+            0,
+            0,
+            image.width / devicePixelRatio,
+            image.height / devicePixelRatio
+        );
 
-            const croppedCanvas = document.createElement("canvas");
-            croppedCanvas.width = visibleWidth * devicePixelRatio;
-            croppedCanvas.height = visibleHeight * devicePixelRatio;
-            const croppedCtx = croppedCanvas.getContext("2d");
-            croppedCtx.drawImage(
-                canvas,
-                x * devicePixelRatio,
-                y * devicePixelRatio,
-                visibleWidth * devicePixelRatio,
-                visibleHeight * devicePixelRatio,
-                0,
-                0,
-                visibleWidth * devicePixelRatio,
-                visibleHeight * devicePixelRatio
-            );
+        const croppedCanvas = document.createElement("canvas");
+        croppedCanvas.width = visibleWidth * devicePixelRatio;
+        croppedCanvas.height = visibleHeight * devicePixelRatio;
+        const croppedCtx = croppedCanvas.getContext("2d");
+        croppedCtx.drawImage(
+            canvas,
+            x * devicePixelRatio,
+            y * devicePixelRatio,
+            visibleWidth * devicePixelRatio,
+            visibleHeight * devicePixelRatio,
+            0,
+            0,
+            visibleWidth * devicePixelRatio,
+            visibleHeight * devicePixelRatio
+        );
 
-            return new Promise((resolve) => {
-                croppedCanvas.toBlob(resolve, "image/jpeg", 1.0);
-            });
+        return new Promise((resolve) => {
+            croppedCanvas.toBlob(resolve, "image/jpeg", 1.0);
+        });
         // } catch (error) {
         //     console.error("Error capturing image:", error);
         //     return Promise.reject(error);
@@ -647,38 +687,31 @@
             // Scroll the image to the top of the screen if possible
             const wantToScroll = rect.top + window.scrollY;
             window.scrollTo(0, wantToScroll);
-            console.log("AAA_Want to scroll:", wantToScroll);
-            
+
             await waitUntilScrollCompletes(wantToScroll);
             await new Promise((resolve) => setTimeout(resolve, 200));
 
-            console.log("AAA_Capturing image:", img.src);
             // Capture the image in parts
-            firstPartial=true;
+            firstPartial = true;
             while (capturedHeight < totalHeight) {
-                console.log("AAA_Continuing, captured not finished for image:", img.src);
-
                 hideDiv(pageMaskID);
                 hideDiv(messageBoxID);
 
                 // If image is partially hidden at the top, scroll to reveal the top part (ie: hidden by a menu)
                 topHiddenPixels = getHiddenPixels(img, "top");
                 if (topHiddenPixels > 0) {
-                    console.log("AAA_Partially hidden at the top:", topHiddenPixels, "pixels");
                     const adaptedWantToScroll = wantToScroll - topHiddenPixels;
                     window.scrollTo(0, adaptedWantToScroll);
-                    console.log("AAA_Adapted want to scroll:", adaptedWantToScroll);
                     await waitUntilScrollCompletes(adaptedWantToScroll);
                     await new Promise((resolve) => setTimeout(resolve, 200));
 
                     if (firstPartial) {
-                        firstPartial=false;
+                        firstPartial = false;
                         // we don't want to crop the 1st partial image as it will be the top of the image
                         topHiddenPixels = 0;
                     }
-                } else 
-                    console.log("AAA_Not hidden at the top");
-                    
+                }
+
                 // Wait 50ms after hiding the spinner
                 await new Promise((resolve) => setTimeout(resolve, 50));
                 const screenshotUrl = await getScreenshot();
@@ -686,7 +719,12 @@
                 showDiv(pageMaskID);
                 showDiv(messageBoxID);
 
-                const partialBlob = await captureImage({ img: img, screenshotUrl: screenshotUrl, crop_px: topHiddenPixels, crop_side: "top" });
+                const partialBlob = await captureImage({
+                    img: img,
+                    screenshotUrl: screenshotUrl,
+                    crop_px: topHiddenPixels,
+                    crop_side: "top",
+                });
                 const image = new Image();
                 image.src = URL.createObjectURL(partialBlob);
                 await new Promise((resolve) => {
@@ -703,11 +741,13 @@
                     0,
                     0,
                     totalWidth * devicePixelRatio,
-                    Math.min(totalHeight - capturedHeight, window.innerHeight) * devicePixelRatio,
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
+                        devicePixelRatio,
                     0,
                     capturedHeight * devicePixelRatio,
                     totalWidth * devicePixelRatio,
-                    Math.min(totalHeight - capturedHeight, window.innerHeight) * devicePixelRatio
+                    Math.min(totalHeight - capturedHeight, window.innerHeight) *
+                        devicePixelRatio
                 );
 
                 capturedHeight += partialHeightPx; // Correctly update capturedHeight
@@ -716,7 +756,8 @@
                 } else {
                     await new Promise((resolve) => setTimeout(resolve, 501)); // Wait for scroll to complete & Respect Chrome rate limit
                     // Crop the part of the image which is already on the previous partial screenshot
-                    const remainingHeight = totalHeight - capturedHeight + partialHeightPx;
+                    const remainingHeight =
+                        totalHeight - capturedHeight + partialHeightPx;
                     ctx.drawImage(
                         image,
                         0,
@@ -724,7 +765,8 @@
                         totalWidth * devicePixelRatio,
                         remainingHeight * devicePixelRatio,
                         0,
-                        capturedHeight * devicePixelRatio - remainingHeight * devicePixelRatio,
+                        capturedHeight * devicePixelRatio -
+                            remainingHeight * devicePixelRatio,
                         totalWidth * devicePixelRatio,
                         remainingHeight * devicePixelRatio
                     );
@@ -758,7 +800,12 @@
         }, 100);
     }
 
-    async function submitImageToBackground(apiUrl, image, imageBlob, cacheKeys) {
+    async function submitImageToBackground(
+        apiUrl,
+        image,
+        imageBlob,
+        cacheKeys
+    ) {
         if (!imageBlob) {
             return { taskId: "0", status: "error", statusText: "blob is null" };
         }
@@ -868,15 +915,14 @@
 
     // Function to check if an image should be translated
     function shouldTranslateImage(image) {
-
         const min_pixel_count = 700000;
 
         const width = image.naturalWidth;
         const height = image.naturalHeight;
         const nb_pixels = width * height; // Check if image size is greater than 700,000 pixels
 
-
-        if (! isVisible(image)) { //check hidden tips in style, etc..
+        if (!isVisible(image)) {
+            //check hidden tips in style, etc..
             // console.log("Image is not visible");
             return false;
         }
@@ -905,7 +951,9 @@
             image.getAttribute("sourceURL") === image.src
         ) {
             //should be true? maybe...
-            console.error("Image has been translated but sourceURL is the same as src!!");
+            console.error(
+                "Image has been translated but sourceURL is the same as src!!"
+            );
             return true;
         }
 
@@ -968,8 +1016,7 @@
         }
     }
 
-    async function generateCacheKeys({ src= null ,  blob=null} = {}) {
-
+    async function generateCacheKeys({ src = null, blob = null } = {}) {
         let cacheKeys = [];
         const settingsHash = await computeSettingsFingerprint(
             quickSettings,
@@ -978,7 +1025,9 @@
         if (src) {
             const urlObj = new URL(src);
             const domain = urlObj.hostname.split(".").slice(-2).join(".");
-            cacheKeys.push(`${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}`);
+            cacheKeys.push(
+                `${domain}${urlObj.pathname}${urlObj.search}_${settingsHash}`
+            );
         }
         if (blob) {
             //blob = await fetchImageBlob(input);
@@ -1116,9 +1165,9 @@
     }
 
     function observeImageVisibility(image, messageboxId) {
-        if ('IntersectionObserver' in window) {
-            const observer = new IntersectionObserver(entries => {
-                entries.forEach(entry => {
+        if ("IntersectionObserver" in window) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
                     if (!entry.isIntersecting) {
                         deleteMessagebox(messageboxId);
                         observer.disconnect();
@@ -1139,30 +1188,31 @@
         id = `messagebox-${Date.now()}`,
         delay = 0,
     } = {}) {
-
         if (img) {
             //look for the real image, not the placeholder
             const list_src = document.querySelectorAll(`img[src="${img.src}"]`);
-            const list_original_src = document.querySelectorAll(`img[data-original-src="${img.dataset.originalSrc}"]`);
+            const list_original_src = document.querySelectorAll(
+                `img[data-original-src="${img.dataset.originalSrc}"]`
+            );
 
             // console.log("list_src:", list_src);
             // console.log("list_original_src:", list_original_src);
             //real_image contient l'image réelle, pas le placeholder
-            const real_image = list_original_src.length > 0 ? list_original_src : list_src;
-            img=real_image[0];
+            const real_image =
+                list_original_src.length > 0 ? list_original_src : list_src;
+            img = real_image[0];
             let rect;
             try {
                 rect = img.getBoundingClientRect();
-            }
-            catch (error) {
+            } catch (error) {
                 console.error("Error getting bounding rect:", error);
                 return;
             }
-                top = rect.top + window.scrollY; // Adjust top relative to the page
-                left = rect.left + window.scrollX; // Adjust left relative to the page
-                // top = window.scrollY + top;
-                // left = window.scrollX + left
-            }
+            top = rect.top + window.scrollY; // Adjust top relative to the page
+            left = rect.left + window.scrollX; // Adjust left relative to the page
+            // top = window.scrollY + top;
+            // left = window.scrollX + left
+        }
 
         // si le div existe déjà on met à jour le text
         let messageboxDiv = document.getElementById(id);
@@ -1198,10 +1248,11 @@
         return messageboxDiv.id;
     }
 
-    function deleteMessagebox(id=null) {
-        
+    function deleteMessagebox(id = null) {
         if (!id) {
-            const messageboxes = document.querySelectorAll("[id^='messagebox-']");
+            const messageboxes = document.querySelectorAll(
+                "[id^='messagebox-']"
+            );
             messageboxes.forEach((messagebox) => {
                 messagebox.remove();
             });
@@ -1245,7 +1296,10 @@
 
     function waitForDomToStabilize() {
         return new Promise((resolve) => {
-            messagebox({ txt: "Waiting for DOM to stabilize", id: mainMessageBoxID });
+            messagebox({
+                txt: "Waiting for DOM to stabilize",
+                id: mainMessageBoxID,
+            });
             let previousCount = -1;
             const interval = setInterval(() => {
                 const images = document.getElementsByTagName("img");
@@ -1277,11 +1331,15 @@
                     };
                     img.onerror = function () {
                         resolve();
-                    }
+                    };
 
                     //log images  that are not loaded, nor errored, nor disconnected
                     setTimeout(() => {
-                        if (!img.complete && !img.onerror && !img.onDisconnect) {
+                        if (
+                            !img.complete &&
+                            !img.onerror &&
+                            !img.onDisconnect
+                        ) {
                             console.log(`Image not loaded: ${img.src}`);
                             resolve();
                         }
@@ -1363,7 +1421,8 @@
     function isVisible(img) {
         const style = window.getComputedStyle(img);
         return (
-            img.offsetWidth > 0 && img.offsetHeight > 0 && // Not zero-sized
+            img.offsetWidth > 0 &&
+            img.offsetHeight > 0 && // Not zero-sized
             style.display !== "none" &&
             style.visibility !== "hidden" &&
             parseFloat(style.opacity) > 0 &&
@@ -1376,7 +1435,7 @@
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ["src", "class","style", "hidden"],
+            attributeFilter: ["src", "class", "style", "hidden"],
         });
         mainObserverStarted = true;
     }
@@ -1395,7 +1454,7 @@
             if (quickSettings.capture && imagesToCapture.length != 0) {
                 return;
             }
-            const {img, objectUrl} = translatedCapturedImages.shift();
+            const { img, objectUrl } = translatedCapturedImages.shift();
             updateImageSource(img, objectUrl);
             updateImageSourceSet(img, objectUrl);
         }, 10);
@@ -1427,7 +1486,7 @@
             for (const mutation of mutations) {
                 if (mutation.type === "childList") {
                     for (const node of mutation.addedNodes) {
-                        if (node.tagName === "IMG"){
+                        if (node.tagName === "IMG") {
                             newImages.push(node);
                         } else if (node.querySelectorAll) {
                             newImages.push(
@@ -1438,9 +1497,16 @@
                 }
 
                 if (mutation.type === "attributes") {
-                    if (mutation.attributeName === "src" && mutation.target.tagName === "IMG") {
+                    if (
+                        mutation.attributeName === "src" &&
+                        mutation.target.tagName === "IMG"
+                    ) {
                         newImages.push(mutation.target);
-                    } else if (mutation.attributeName === "class" && (mutation.target.tagName === "IMG" || mutation.target.querySelectorAll)){
+                    } else if (
+                        mutation.attributeName === "class" &&
+                        (mutation.target.tagName === "IMG" ||
+                            mutation.target.querySelectorAll)
+                    ) {
                         const target = mutation.target;
                         if (target.tagName === "IMG") {
                             newImages.push(target);
@@ -1451,14 +1517,20 @@
                             }
                         }
                     }
-                }                
+                }
             }
 
             //Buggy with capture for now
             if (newImages.length != 0) {
                 //deduplicate images
-                newImages = newImages.filter((img, index) => newImages.indexOf(img) === index);
-                messagebox({ txt: "Processing new image(s)", id: mainMessageBoxID, delay: 3000 });
+                newImages = newImages.filter(
+                    (img, index) => newImages.indexOf(img) === index
+                );
+                messagebox({
+                    txt: "Processing new image(s)",
+                    id: mainMessageBoxID,
+                    delay: 3000,
+                });
                 await waitForAllImagesToLoad();
                 //const screenshotUrl = await getScreenshot();
                 const screenshotUrl = null;
@@ -1469,40 +1541,45 @@
         startObserver();
     }
 
-    chrome.runtime.onMessage.addListener(
-        (message, sender, sendResponse) => {
-            if (message.type === "forceTranslate") {
-                let imgsrc=message.data
-                const img = document.querySelector(`img[src="${imgsrc}"]`);
-                if (imgsrc.startsWith("http")) {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === "forceTranslate") {
+            let imgsrc = message.data;
+            const img = document.querySelector(`img[src="${imgsrc}"]`);
+            if (imgsrc.startsWith("http")) {
+                console.log("Forcing translation of image:", imgsrc);
+
+                if (img) {
                     console.log("Forcing translation of image:", imgsrc);
-                    
-                    if (img) {
-                        console.log("Forcing translation of image:", imgsrc);
-                        translateImage(img, null);
-                    } else {
-                        console.error("Image not found:", imgsrc);
-                    }
+                    translateImage(img, null);
                 } else {
-                    messagebox({ txt: "Image source is not a valid URL!", img: img , delay: 3000 });
-                    console.error("Image source is not a valid URL:", imgsrc);
+                    console.error("Image not found:", imgsrc);
                 }
-                //forceTranslate
-                console.log("Forcing translation of all images");
-                console.log(message);
+            } else {
+                messagebox({
+                    txt: "Image source is not a valid URL!",
+                    img: img,
+                    delay: 3000,
+                });
+                console.error("Image source is not a valid URL:", imgsrc);
             }
-            if (message.type === "purgeCache") {
-                (async () => {
-                    const success = await caches.delete("my-cache-manga-translate");
-                    if (success) {
-                        const res =  await sendMessageandWait("removeAllProcessingKeys", {});
-                        sendResponse("Cache purged");
-                    } else {
-                        sendResponse("Cache purge failed");
-                    }
-                })();
-                return true; // Keep the message channel open for sendResponse
-            }
+            //forceTranslate
+            console.log("Forcing translation of all images");
+            console.log(message);
         }
-    );
+        if (message.type === "purgeCache") {
+            (async () => {
+                const success = await caches.delete("my-cache-manga-translate");
+                if (success) {
+                    const res = await sendMessageandWait(
+                        "removeAllProcessingKeys",
+                        {}
+                    );
+                    sendResponse("Cache purged");
+                } else {
+                    sendResponse("Cache purge failed");
+                }
+            })();
+            return true; // Keep the message channel open for sendResponse
+        }
+    });
 })();
