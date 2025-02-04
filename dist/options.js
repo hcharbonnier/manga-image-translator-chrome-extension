@@ -75,6 +75,7 @@ function saveOptions(e) {
   let target_language = document.getElementById('target_language').value;
   let colorize = document.getElementById('colorize').checked;
   let capture = document.getElementById('capture').checked;
+  let automatic = document.getElementById('automatic').checked; // Added line
 
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     let currentWebsite = new URL(tabs[0].url).hostname;
@@ -88,6 +89,7 @@ function saveOptions(e) {
       quickSettings.target_language = target_language;
       quickSettings.colorize = colorize;
       quickSettings.capture = capture;
+      quickSettings.automatic = automatic; // Added line
 
       chrome.storage.sync.set({ quickSettings }, function () {
         updateIcon(isEnabled);
@@ -109,7 +111,8 @@ function restoreOptions() {
       apiUrl: '',
       status: '',
       target_language: 'ENG',
-      capture: false
+      capture: false,
+      automatic: false // Added line
     };
 
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
@@ -120,6 +123,7 @@ function restoreOptions() {
       document.getElementById('status').value = items.status;
       document.getElementById('target_language').value = items.target_language;
       document.getElementById('capture').checked = items.capture;
+      document.getElementById('automatic').checked = items.automatic; // Added line
       document.getElementById('enabledLabel').textContent = `Enabled for ${currentWebsite}`;
 
       updateIcon(items.enabledWebsites[currentWebsite] || false);

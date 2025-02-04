@@ -976,44 +976,115 @@
             images = Array.from(images);
         }
 
-        if (quickSettings.capture) {
+        if (quickSettings.automatic) {
+            if (quickSettings.capture) {
+                for (const image of images) {
+                    if (image.src) {
+                        if (shouldTranslateImage(image)) {
+                            if (image.complete) {
+                                await translateImage(image, screenshotUrl);
+                            } else {
+                                image.onload = async () => {
+                                    await translateImage(image, screenshotUrl);
+                                };
+                            }
+                        } else {
+                            // console.log(
+                            //     "Image does not meet the criteria for translation:" +
+                            //         image.src
+                            // );
+                        }
+                    }
+
+                    //window.scrollTo(0, 0);
+                }
+            } else {
+                const promises = images.map(async (image) => {
+                    if (shouldTranslateImage(image)) {
+                        if (image.complete) {
+                            translateImage(image, screenshotUrl);
+                        } else {
+                            translateImage(image, screenshotUrl);
+                        }
+                    } else {
+                        console.log(
+                            "Image does not meet the criteria for translation:" +
+                                image.src
+                        );
+                    }
+                });
+                await Promise.all(promises);
+            }
+        } else {
+            //Manual mode
             for (const image of images) {
                 if (image.src) {
                     if (shouldTranslateImage(image)) {
-                        if (image.complete) {
-                            await translateImage(image, screenshotUrl);
-                        } else {
-                            image.onload = async () => {
-                                await translateImage(image, screenshotUrl);
-                            };
-                        }
-                    } else {
-                        // console.log(
-                        //     "Image does not meet the criteria for translation:" +
-                        //         image.src
-                        // );
+                        await enrichImage(image);
                     }
                 }
-
-                //window.scrollTo(0, 0);
             }
-        } else {
-            const promises = images.map(async (image) => {
-                if (shouldTranslateImage(image)) {
-                    if (image.complete) {
-                        translateImage(image, screenshotUrl);
-                    } else {
-                        translateImage(image, screenshotUrl);
-                    }
-                } else {
-                    console.log(
-                        "Image does not meet the criteria for translation:" +
-                            image.src
-                    );
-                }
-            });
-            await Promise.all(promises);
         }
+    }
+
+    async function enrichImage(image) {
+        // Add a translate icon on the top left corner of the image
+        const translateIcon = document.createElement("img");
+        translateIcon.src = chrome.runtime.getURL("icons/translate.png");
+        translateIcon.style.position = "absolute";
+        translateIcon.style.top = "0";
+        translateIcon.style.left = "0";
+        translateIcon.style.width = "24px";
+        translateIcon.style.height = "24px";
+        translateIcon.style.cursor = "pointer";
+        translateIcon.style.zIndex = "10000";
+
+        // Add a colorize icon to the right of the translate icon
+        const colorizeIcon = document.createElement("img");
+        colorizeIcon.src = chrome.runtime.getURL("icons/colorize.png");
+        colorizeIcon.style.position = "absolute";
+        colorizeIcon.style.top = "0";
+        colorizeIcon.style.left = "26px"; // Position it to the right of the translate icon
+        colorizeIcon.style.width = "24px";
+        colorizeIcon.style.height = "24px";
+        colorizeIcon.style.cursor = "pointer";
+        colorizeIcon.style.zIndex = "10000";
+
+        // Position the icons relative to the image
+        const imageRect = image.getBoundingClientRect();
+        translateIcon.style.top = `${imageRect.top + window.scrollY}px`;
+        translateIcon.style.left = `${imageRect.left + window.scrollX}px`;
+        colorizeIcon.style.top = `${imageRect.top + window.scrollY}px`;
+        colorizeIcon.style.left = `${imageRect.left + window.scrollX + 26}px`;
+
+        // Add click event to trigger translation and remove the icons
+        translateIcon.addEventListener("click", async () => {
+            translateIcon.remove();
+            colorizeIcon.remove();
+            await translateImage(image);
+        });
+
+        // Add click event to trigger translation and remove the icons
+        colorizeIcon.addEventListener("click", async () => {
+            translateIcon.remove();
+            colorizeIcon.remove();
+            await translateImage(image);
+        });
+
+        // Append the icons to the body
+        document.body.appendChild(translateIcon);
+        //document.body.appendChild(colorizeIcon);
+
+        // Observe image position changes and update icon positions
+        const observer = new MutationObserver(() => {
+            const newImageRect = image.getBoundingClientRect();
+            translateIcon.style.top = `${newImageRect.top + window.scrollY}px`;
+            translateIcon.style.left = `${newImageRect.left + window.scrollX}px`;
+            colorizeIcon.style.top = `${newImageRect.top + window.scrollY}px`;
+            colorizeIcon.style.left = `${newImageRect.left + window.scrollX + 26}px`;
+        });
+
+        observer.observe(image, { attributes: true, attributeFilter: ["style", "src"] });
     }
 
     async function generateCacheKeys({ src = null, blob = null } = {}) {

@@ -30,6 +30,16 @@
         "run_at": "document_idle"
       }
     ],
+    "web_accessible_resources": [
+      {
+        "resources": ["icons/translate.png"],
+        "matches": ["<all_urls>"]
+      },
+      {
+        "resources": ["icons/colorize.png"],
+        "matches": ["<all_urls>"]
+      }
+    ],
     "icons": {
        "128": "icons/128x128.png",
        "48": "icons/48x48.png"
